@@ -1,0 +1,78 @@
+Data API : https://dpoikjyggaenldtxchvs.supabase.co/rest/v1/
+Anon Public : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb2lranlnZ2FlbmxkdHhjaHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NzM5MzQsImV4cCI6MjEwNTU0OTkzNH0.9CWiUROXQPUhF3KGYQvtROuErg-KOSlvsk0YnysAALQ
+
+
+------------------------
+Langkah-langkah Setup (Hanya 2 Menit):
+Daftar/Login di cron-job.org (Gratis).
+
+Klik tombol "Create Cronjob".
+Isi kolom sebagai berikut:
+Title / Name: Keep Alive Kas RT Supabase
+
+URL: Masukkan URL API REST Supabase Anda dengan format:
+code Text
+
+https://<PROJECT-REF-ANDA>.supabase.co/rest/v1/kas_rt?select=id&limit=1
+(Ganti <PROJECT-REF-ANDA> dengan ID proyek Supabase Anda)
+
+Execution schedule: Pilih Every day (Setiap hari) atau Every 3 days (Setiap 3 hari).
+Atur Header HTTP (Sangat Penting):
+
+Buka bagian Headers / Advanced.
+Tambahkan 2 baris Header berikut:
+
+Header 1: apikey
+Value: <VITE_SUPABASE_ANON_KEY Anda>
+
+Header 2: Authorization
+Value: Bearer <VITE_SUPABASE_ANON_KEY Anda>
+
+Klik Create / Save.
+Hasilnya: Setiap hari, cron-job.org akan memanggil 1 baris data ringan dari database Anda. Supabase akan mencatat ada aktivitas rutin sehingga proyek Anda TIDAK AKAN PERNAH DITIDURKAN.
+
+---------------------
+saya tertarik menggunakan cron-job.org, tapi yang dimaksud : Ganti <PROJECT-REF-ANDA> dengan ID proyek Supabase itu apa/diamana?
+---------------------------------
+<PROJECT-REF-ANDA> (Project Reference ID) adalah kode unik acak yang menjadi identitas proyek Supabase Anda.
+
+Anda bisa menemukannya dengan 2 cara paling mudah berikut:
+Cara 1: Dilihat Langsung Dari URL Supabase Anda (Paling Praktis)
+
+Jika Anda sudah memiliki URL Supabase (variabel VITE_SUPABASE_URL), kode <PROJECT-REF-ANDA> adalah deretan huruf/angka acak di depan .supabase.co.
+
+Contoh:
+Jika URL Supabase Anda adalah:
+https://xyzabcdefghijklmno.supabase.co
+
+Maka <PROJECT-REF-ANDA> Anda adalah:
+xyzabcdefghijklmno
+
+💡 Jadi, URL lengkap untuk diisi di Cron-Job.org adalah:
+
+Cukup ambil URL Supabase Anda, lalu tambahkan /rest/v1/kas_rt?select=id&limit=1 di belakangnya.
+
+Contoh URL Akhir di Cron-Job.org:
+https://xyzabcdefghijklmno.supabase.co/rest/v1/kas_rt?select=id&limit=1
+
+Cara 2: Dilihat Dari Dashboard Supabase
+Login ke akun Supabase Anda di https://supabase.com/dashboard.
+Klik nama Proyek Anda.
+
+Di menu sebelah kiri, klik ikon roda gigi Project Settings ⚙️ -> pilih API.
+Di bagian Project URL, Anda akan melihat URL lengkap proyek Anda (contoh: https://xyzabcdefghijklmno.supabase.co).
+
+Di bawahnya juga terdapat teks Project Reference (contoh: xyzabcdefghijklmno).
+
+Ringkasan Pengisian di Cron-Job.org:
+Kolom di Cron-Job.org	Isian yang Dimasukkan
+URL	https://URL_SUPABASE_ANDA.supabase.co/rest/v1/kas_rt?select=id&limit=1
+Header 1 Name	apikey
+Header 1 Value	(Tempelkan ANON_KEY Supabase Anda)
+Header 2 Name	Authorization
+Header 2 Value	Bearer + (Tempelkan ANON_KEY Supabase Anda)
+
+(Catatan: Jangan lupa beri spasi setelah kata Bearer pada Header 2)
+
+
+

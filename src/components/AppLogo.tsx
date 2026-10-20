@@ -1,0 +1,109 @@
+import React from 'react';
+
+interface AppLogoProps {
+  className?: string;
+}
+
+export const RT_LOGO_SVG_RAW = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="orange-red-grad" x1="12" y1="14" x2="76" y2="106" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6B35" />
+      <stop offset="40%" stop-color="#E83F59" />
+      <stop offset="100%" stop-color="#D81B60" />
+    </linearGradient>
+    <linearGradient id="blue-grad" x1="108" y1="14" x2="44" y2="106" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E3C72" />
+      <stop offset="60%" stop-color="#2A5298" />
+      <stop offset="100%" stop-color="#0F2027" />
+    </linearGradient>
+    <linearGradient id="blue-letter-grad" x1="30" y1="40" x2="68" y2="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00C6FF" />
+      <stop offset="60%" stop-color="#0072FF" />
+      <stop offset="100%" stop-color="#0052D4" />
+    </linearGradient>
+    <linearGradient id="red-letter-grad" x1="56" y1="40" x2="90" y2="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF416C" />
+      <stop offset="100%" stop-color="#FF4B2B" />
+    </linearGradient>
+  </defs>
+  <path d="M 76,14 C 41,10 12,34 12,60 C 12,86 41,110 76,106 C 50,108 24,90 24,60 C 24,30 50,12 76,14 Z" fill="url(#orange-red-grad)" />
+  <path d="M 44,106 C 79,110 108,86 108,60 C 108,34 79,10 44,14 C 70,12 96,30 96,60 C 96,90 70,108 44,106 Z" fill="url(#blue-grad)" />
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M 30,40 H 56 C 64,40 68,44 68,50 C 68,55.5 64,59.5 56,59.5 H 41 V 76 H 30 Z M 41,47 H 53.5 C 55.5,47 56.5,48 56.5,49.75 C 56.5,51.5 55.5,52.5 53.5,52.5 H 41 Z" fill="url(#blue-letter-grad)" />
+  <path d="M 41,59.5 C 47,59.5 53,64 57.5,69 L 61.5,76 H 49 C 45,71 41,66 38.5,63 H 41 Z" fill="url(#blue-letter-grad)" />
+  <path d="M 56,40 H 90 L 83,48 H 76 V 76 H 66 V 48 H 56 Z" fill="url(#red-letter-grad)" />
+</svg>`;
+
+export const RT_LOGO_DATA_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(RT_LOGO_SVG_RAW);
+
+export const AppLogo: React.FC<AppLogoProps> = ({ className = 'w-10 h-10' }) => {
+  return (
+    <svg 
+      viewBox="0 0 120 120" 
+      className={`${className} select-none drop-shadow-md`}
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      id="rt02-official-modern-logo"
+    >
+      <defs>
+        {/* Outer Left Ring Gradient (Orange to Red) */}
+        <linearGradient id="orange-red-grad-component" x1="12" y1="14" x2="76" y2="106" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FF6B35" />
+          <stop offset="40%" stopColor="#E83F59" />
+          <stop offset="100%" stopColor="#D81B60" />
+        </linearGradient>
+
+        {/* Outer Right Ring Gradient (Blue to Deep Navy) */}
+        <linearGradient id="blue-grad-component" x1="108" y1="14" x2="44" y2="106" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1E3C72" />
+          <stop offset="60%" stopColor="#2A5298" />
+          <stop offset="100%" stopColor="#0F2027" />
+        </linearGradient>
+
+        {/* Letter R Blue Gradient */}
+        <linearGradient id="blue-letter-grad-component" x1="30" y1="40" x2="68" y2="76" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#00C6FF" />
+          <stop offset="60%" stopColor="#0072FF" />
+          <stop offset="100%" stopColor="#0052D4" />
+        </linearGradient>
+
+        {/* Letter T Red Gradient */}
+        <linearGradient id="red-letter-grad-component" x1="56" y1="40" x2="90" y2="76" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FF416C" />
+          <stop offset="100%" stopColor="#FF4B2B" />
+        </linearGradient>
+      </defs>
+
+      {/* Outer Left Tapered Swoosh (Red-Orange Gradient) */}
+      <path 
+        d="M 76,14 C 41,10 12,34 12,60 C 12,86 41,110 76,106 C 50,108 24,90 24,60 C 24,30 50,12 76,14 Z" 
+        fill="url(#orange-red-grad-component)" 
+      />
+
+      {/* Outer Right Tapered Swoosh (Blue Gradient) */}
+      <path 
+        d="M 44,106 C 79,110 108,86 108,60 C 108,34 79,10 44,14 C 70,12 96,30 96,60 C 96,90 70,108 44,106 Z" 
+        fill="url(#blue-grad-component)" 
+      />
+
+      {/* Stylized Monogram "R" with transparent hollow-out bowl */}
+      <path 
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M 30,40 H 56 C 64,40 68,44 68,50 C 68,55.5 64,59.5 56,59.5 H 41 V 76 H 30 Z M 41,47 H 53.5 C 55.5,47 56.5,48 56.5,49.75 C 56.5,51.5 55.5,52.5 53.5,52.5 H 41 Z" 
+        fill="url(#blue-letter-grad-component)" 
+      />
+
+      {/* Leg of R with curve/slanted shape */}
+      <path 
+        d="M 41,59.5 C 47,59.5 53,64 57.5,69 L 61.5,76 H 49 C 45,71 41,66 38.5,63 H 41 Z" 
+        fill="url(#blue-letter-grad-component)" 
+      />
+
+      {/* Stylized Monogram "T" */}
+      <path 
+        d="M 56,40 H 90 L 83,48 H 76 V 76 H 66 V 48 H 56 Z" 
+        fill="url(#red-letter-grad-component)" 
+      />
+    </svg>
+  );
+};
