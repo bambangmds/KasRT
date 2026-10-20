@@ -126,13 +126,13 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
     return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
   };
 
-  // Get dynamic categories from Supabase (or fallback to default mandatory ones)
-  // Only display income categories that are mandatory (wajib === true)
+  // Get dynamic categories from Supabase
   const availableCategories = useMemo(() => {
     const list = categories
       .filter(c => c.type === 'Masuk' && (c.wajib === true || String(c.wajib) === 'Y' || String(c.wajib) === 'Yes' || String(c.wajib).toLowerCase() === 'true'))
       .map(c => c.name);
-    return list.length > 0 ? list : ['Iuran Warga', 'Iuran Wajib'];
+    if (list.length > 0) return list;
+    return categories.filter(c => c.type === 'Masuk').map(c => c.name);
   }, [categories]);
 
   // Common Citizen State

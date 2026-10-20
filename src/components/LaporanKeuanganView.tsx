@@ -292,14 +292,11 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
     { value: '12', label: 'Desember' },
   ];
 
-  // Unique categories from predefined list and recorded transactions
+  // Unique categories from database list and recorded transactions
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
     if (categories && categories.length > 0) {
       categories.forEach((c) => cats.add(c.name));
-    } else {
-      CATEGORIES_BY_TYPE.Masuk.forEach((c) => cats.add(c.value));
-      CATEGORIES_BY_TYPE.Keluar.forEach((c) => cats.add(c.value));
     }
     transactions.forEach((t) => {
       if (t.category) cats.add(t.category);

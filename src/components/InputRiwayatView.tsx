@@ -67,13 +67,11 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
 
   // List kategori aktif sesuai jenis transaksi (Kas Masuk / Kas Keluar)
   const activeCategoryList = useMemo(() => {
-    if (categories && categories.length > 0) {
+    if (categories) {
       const filtered = categories.filter((c) => c.type === type);
-      if (filtered.length > 0) {
-        return filtered.map((c) => ({ value: c.name, label: c.name }));
-      }
+      return filtered.map((c) => ({ value: c.name, label: c.name }));
     }
-    return CATEGORIES_BY_TYPE[type] || [];
+    return [];
   }, [categories, type]);
 
   const [category, setCategory] = useState(() => {
@@ -81,7 +79,7 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
       const first = categories.find((c) => c.type === 'Masuk');
       if (first) return first.name;
     }
-    return CATEGORIES_BY_TYPE['Masuk'][0].value;
+    return '';
   });
 
   // Pastikan kategori yang dipilih selalu valid saat list berubah
@@ -91,6 +89,8 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
       if (!exists) {
         setCategory(activeCategoryList[0].value);
       }
+    } else {
+      setCategory('');
     }
   }, [activeCategoryList, category]);
 
@@ -184,7 +184,7 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
         return;
       }
     }
-    setCategory(CATEGORIES_BY_TYPE[newType][0].value);
+    setCategory('');
   };
 
   // Format currency as user types
@@ -206,6 +206,16 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
   // Handle Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!category || !category.trim()) {
+      if (onTriggerToast) {
+        onTriggerToast(
+          'Tabel kategori di Supabase masih kosong. Silakan tambahkan kategori terlebih dahulu di menu Kelola Kategori.',
+          'error',
+          'Kategori Kosong'
+        );
+      }
+      return;
+    }
     const cleanNumber = parseInt(rawAmount.replace(/\./g, ''), 10);
     if (!cleanNumber || cleanNumber <= 0) return;
     if (!description.trim()) return;
@@ -442,14 +452,25 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-400/30 border border-slate-200 focus:border-slate-400 transition-all text-xs font-medium cursor-pointer"
+                  disabled={activeCategoryList.length === 0}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-400/30 border border-slate-200 focus:border-slate-400 transition-all text-xs font-medium cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
                 >
-                  {activeCategoryList.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
+                  {activeCategoryList.length === 0 ? (
+                    <option value="">-- (Kosong) Tidak Ada Kategori di Supabase --</option>
+                  ) : (
+                    activeCategoryList.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </option>
+                    ))
+                  )}
                 </select>
+                {activeCategoryList.length === 0 && (
+                  <p className="text-[11px] text-amber-700 font-medium mt-1 flex items-center gap-1.5 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                    <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Tabel kategori di Supabase masih kosong. Silakan tambahkan kategori di menu <b>Kelola Kategori</b>.</span>
+                  </p>
+                )}
               </div>
             </div>
 

@@ -172,9 +172,6 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
     const cats = new Set<string>();
     if (categories && categories.length > 0) {
       categories.forEach((c) => cats.add(c.name));
-    } else {
-      CATEGORIES_BY_TYPE.Masuk.forEach((c) => cats.add(c.value));
-      CATEGORIES_BY_TYPE.Keluar.forEach((c) => cats.add(c.value));
     }
     transactions.forEach((tx) => {
       if (tx.category) cats.add(tx.category);
@@ -204,13 +201,11 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
 
   // Daftar opsi kategori untuk modal edit sesuai editType
   const editCategoriesList = useMemo(() => {
-    if (categories && categories.length > 0) {
+    if (categories) {
       const filtered = categories.filter((c) => c.type === editType);
-      if (filtered.length > 0) {
-        return filtered.map((c) => ({ value: c.name, label: c.name }));
-      }
+      return filtered.map((c) => ({ value: c.name, label: c.name }));
     }
-    return CATEGORIES_BY_TYPE[editType] || [];
+    return [];
   }, [categories, editType]);
 
   // Deskripsi kategori terpilih pada modal edit
@@ -897,7 +892,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                           return;
                         }
                       }
-                      setEditCategory(CATEGORIES_BY_TYPE[newType][0].value);
+                      setEditCategory('');
                     }}
                     required
                     className="px-4 py-2.5 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium"
@@ -915,13 +910,18 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                     value={editCategory}
                     onChange={(e) => setEditCategory(e.target.value)}
                     required
-                    className="px-4 py-2.5 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium"
+                    disabled={editCategoriesList.length === 0}
+                    className="px-4 py-2.5 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium disabled:opacity-75 disabled:cursor-not-allowed"
                   >
-                    {editCategoriesList.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
+                    {editCategoriesList.length === 0 ? (
+                      <option value="">-- (Kosong) Tidak ada kategori di Supabase --</option>
+                    ) : (
+                      editCategoriesList.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
