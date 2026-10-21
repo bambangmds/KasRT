@@ -1176,26 +1176,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Connected but empty table helper banner */}
-          {connectionStatus === 'connected' && transactions.length === 0 && (
-            <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm print:hidden">
-              <div className="flex items-center gap-3 text-emerald-900">
-                <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-                <span className="leading-relaxed">
-                  Tabel <code className="font-bold bg-white/80 px-1.5 py-0.5 rounded text-emerald-950 border border-emerald-200/60">kas_rt</code> di Supabase berhasil terhubung namun
-                  masih kosong. Anda dapat mengisi data awal contoh atau menginput transaksi langsung.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleSeedSupabase}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl shrink-0 transition-all cursor-pointer shadow-xs active:scale-98"
-              >
-                <Upload className="w-4 h-4 text-emerald-200" />
-                <span>Muat Data Contoh ke Supabase</span>
-              </button>
-            </div>
-          )}
+
 
           {/* Active Tab Views (Enforce RBAC: Non-admin users are strictly restricted to 'laporan-keuangan') */}
           {(activeTab === 'input-riwayat-transaksi' || activeTab === 'data-warga') && activeUser?.levelAkses === 'Admin' && (

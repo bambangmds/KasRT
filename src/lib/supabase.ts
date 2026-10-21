@@ -27,15 +27,19 @@ const ENV_SUPABASE_PROJECT_NAME = (typeof import.meta !== 'undefined' && import.
 // Sample placeholder pattern check
 export const isPlaceholderValue = (val: string): boolean => {
   if (!val) return true;
-  const trimmed = val.trim();
+  const trimmed = val.trim().toLowerCase();
   return (
     trimmed === '' ||
     trimmed.includes('your-project') ||
-    trimmed.includes('your-supabase-anon-key') ||
+    trimmed.includes('your-supabase') ||
+    trimmed.includes('your-anon') ||
+    trimmed.includes('anon-key-here') ||
     trimmed.includes('btahiaacjynvjkwfaree') ||
     trimmed.includes('daaqldpxfycjpuxrozjm') ||
     trimmed.includes('yajrxnzwbwtttnwxhrap') ||
-    trimmed.includes('placeholder')
+    trimmed.includes('placeholder') ||
+    trimmed.includes('my_app_url') ||
+    trimmed.includes('my_gemini_api_key')
   );
 };
 
@@ -100,13 +104,16 @@ export const cleanAnonKey = (input: string): string => {
 };
 
 /**
- * Menerjemahkan error teknis Supabase (termasuk browser NetworkError / CORS / HTML responses)
+ * Menerjemahkan error teknis Supabase (termasuk browser NetworkError / CORS / HTML responses / Invalid API key)
  * menjadi pesan berbahasa Indonesia yang ramah dan solutif.
  */
 export const formatFriendlySupabaseError = (error: any): string => {
   if (!error) return 'Terjadi kendala tidak diketahui.';
   const msg = typeof error === 'string' ? error : (error.message || String(error));
 
+  if (/Invalid API key|JWT|invalid claim|invalid_key|apikey|service_role/i.test(msg)) {
+    return 'Kunci API (Anon Key) Supabase tidak valid. Menggunakan data lokal. Silakan perbarui Project URL & Anon Key di Pengaturan Supabase.';
+  }
   if (msg.includes('<!doctype') || msg.includes('<html') || msg.includes('Starting Server') || msg.includes('502') || msg.includes('503')) {
     return 'Basis data Supabase belum tersambung atau server sedang bersiap. Menggunakan mode penyimpanan lokal.';
   }
@@ -424,7 +431,11 @@ export const fetchKasFromSupabase = async (): Promise<{
       .order('tanggal', { ascending: false });
 
     if (error) {
-      console.error('[Supabase Fetch Error]', error);
+      if (/Invalid API key|JWT|invalid claim|invalid_key|apikey|service_role/i.test(error.message || '')) {
+        console.warn('[Supabase API Key Notice]', error.message);
+      } else {
+        console.error('[Supabase Fetch Error]', error);
+      }
       return { data: null, error: formatFriendlySupabaseError(error) };
     }
 
@@ -1252,7 +1263,7 @@ export const fetchCategoriesFromSupabase = async (): Promise<{
           tableNotCreated: true,
         };
       }
-      return { data: null, error: error.message };
+      return { data: null, error: formatFriendlySupabaseError(error) };
     }
 
     const categories: CategoryItem[] = (data || []).map((row: any) =>

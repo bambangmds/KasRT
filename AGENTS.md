@@ -487,6 +487,16 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
          - Tombol **"Bagikan ke WhatsApp RT"** agar pengurus/tetangga lain yang menerima alarm dapat langsung meneruskan info darurat ke grup RT.
          - Tombol aksi lapangan: **"Matikan Suara"**, **"Saya Segera Datang! 🏃"**, dan **"Situasi Teratasi ✅"**.
 
+57. **Penghapusan Frame Banner 'Muat Data Contoh ke Supabase'**:
+    - Menghapus frame banner pembantu yang muncul saat tabel `kas_rt` Supabase terhubung dalam kondisi kosong di `App.tsx`.
+    - Menjadikan tampilan antarmuka dasbor kas lebih bersih, ringkas, dan bebas dari elemen pengisi data contoh yang tidak diperlukan.
+
+58. **Pemberlakuan Wajib Terdaftar di Buku Data Warga untuk Seluruh Pendaftaran Akun (`AuthScreen.tsx`)**:
+    - **Proteksi Registrasi Serempak**: Seluruh calon pendaftar akun (baik Warga maupun Pengurus RT/pengurus lain seperti Ketua RT, Sekretaris, Bendahara, Seksi, dll.) kini **wajib terdaftar di Buku Data Warga (`data_warga`)** terlebih dahulu sebelum dapat membuat akun baru.
+    - **Validasi Mutlak**: Menghapus isian nama manual terbuka untuk pengurus dan menggantikannya dengan komponen pencarian serta pemilihan data warga terverifikasi.
+    - **Pesan Penolakan Jelas**: Jika nama pemohon tidak ditemukan di Data Warga, sistem secara mutlak menolak pendaftaran dengan pesan: *"Pendaftaran Ditolak! Anda belum terdaftar di Buku Data Warga. Seluruh Pengurus maupun Warga wajib terdaftar di Data Warga terlebih dahulu sebelum dapat membuat akun."*
+    - **Relasi Otomatis**: NIK, No. KK, Alamat Domisili, dan ID Warga (`warga_id`) otomatis terhubung secara relasional saat akun didaftarkan.
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
@@ -494,3 +504,4 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
 - [ ] Pencatatan data nomor rumah / blok warga untuk rekap pembayaran iuran per KK.
 - [ ] Penambahan hak akses atau password proteksi untuk menu Koreksi/Hapus.
 - [ ] Fitur unduh laporan bulanan siap cetak dalam format PDF resmi RT.
+

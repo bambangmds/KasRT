@@ -212,9 +212,9 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
         return;
       }
 
-      const checkWargaId = role === 'Warga' ? selectedCitizen?.id : undefined;
-      const checkNoKk = role === 'Warga' ? selectedCitizen?.no_kk : undefined;
-      const checkNik = role === 'Warga' ? selectedCitizen?.nik : undefined;
+      const checkWargaId = selectedCitizen?.id;
+      const checkNoKk = selectedCitizen?.no_kk;
+      const checkNik = selectedCitizen?.nik;
       const checkEmail = email.trim();
 
       if (!checkWargaId && !checkEmail) {
@@ -364,11 +364,11 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
       }
     }
 
-    if (role === 'Warga') {
-      if (!selectedCitizen) {
-        setErrorMessage('Harap cari dan pilih nama Anda yang telah terdaftar di Buku Data Warga RT.002 RW.09.');
-        return;
-      }
+    if (!selectedCitizen) {
+      setErrorMessage(
+        `Pendaftaran Ditolak! Anda belum terdaftar di Buku Data Warga ${wilayahShort}. Seluruh Pengurus maupun Warga wajib terdaftar di Data Warga terlebih dahulu sebelum dapat membuat akun. Silakan hubungi Pengurus RT untuk didaftarkan ke Data Warga.`
+      );
+      return;
     }
 
     // Proteksi Jabatan: Jika warga atau pendaftar lain memilih jabatan yang sudah ada di tabel pengurus, TOLAK!
@@ -384,7 +384,7 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
     try {
-      const citizenData = role === 'Warga' && selectedCitizen ? {
+      const citizenData = selectedCitizen ? {
         wargaId: selectedCitizen.id,
         no_kk: selectedCitizen.no_kk,
         nik: selectedCitizen.nik,
@@ -894,195 +894,174 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
                   )}
                 </div>
 
-                {/* PEMILIHAN NAMA WARGA DARI DATA_WARGA JIKA ROLE === 'WARGA' */}
-                {role === 'Warga' ? (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Pilih Data Warga Terdaftar</span>
+                {/* PEMILIHAN DATA WARGA / PENGURUS TERDAFTAR DARI DATA_WARGA */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>
+                        {role === 'Warga'
+                          ? `Pilih Data Warga Terdaftar di ${wilayahShort}`
+                          : `Pilih Nama Pengurus dari Data Warga ${wilayahShort}`}
                       </span>
-                      <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                        {dataWargaList.length} Warga Terdata
-                      </span>
-                    </label>
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      {dataWargaList.length} Warga Terdata
+                    </span>
+                  </label>
 
-                    {!selectedCitizen ? (
-                      <div className="space-y-2">
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-                              <Search className="w-3.5 h-3.5" />
-                            </div>
+                  {!selectedCitizen ? (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                            <Search className="w-3.5 h-3.5" />
                           </div>
-                          <input
-                            type="text"
-                            value={wargaSearchTerm}
-                            onChange={(e) => {
-                              setWargaSearchTerm(e.target.value);
-                              setIsWargaDropdownOpen(true);
-                            }}
-                            onFocus={() => setIsWargaDropdownOpen(true)}
-                            placeholder="Ketik Nama KK / NIK / No. KK / Alamat..."
-                            className="w-full pl-12 pr-10 py-2.5 bg-slate-50/70 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all shadow-2xs"
-                          />
-                          {wargaSearchTerm && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWargaSearchTerm('');
-                                setIsWargaDropdownOpen(true);
-                              }}
-                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
                         </div>
-
-                        {/* Dropdown / List Hasil Pencarian Warga */}
-                        <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-100">
-                          {isLoadingWargaList ? (
-                            <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-                              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                              <span>Memuat daftar warga RT...</span>
-                            </div>
-                          ) : filteredDataWarga.length > 0 ? (
-                            filteredDataWarga.map((w) => (
-                              <button
-                                key={w.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCitizen(w);
-                                  setNama(w.nama_lengkap);
-                                  if (w.no_hp) setNoHp(w.no_hp);
-                                  setIsWargaDropdownOpen(false);
-                                  setErrorMessage(null);
-                                }}
-                                className="w-full p-2.5 text-left hover:bg-emerald-50/80 active:bg-emerald-100/70 transition-colors flex items-start gap-2.5 group cursor-pointer"
-                              >
-                                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center text-xs font-bold shrink-0 transition-colors mt-0.5">
-                                  {w.nama_lengkap.slice(0, 2).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between gap-1">
-                                    <span className="text-xs font-bold text-slate-900 group-hover:text-emerald-950 truncate">
-                                      {w.nama_lengkap}
-                                      {hasAccountMap[w.id] && (
-                                        <span className="text-rose-600 font-extrabold text-[10px] ml-1"> (sudah terdaftar)</span>
-                                      )}
-                                    </span>
-                                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
-                                      Pilih
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-[10.5px] text-slate-500 mt-0.5 flex-wrap">
-                                    {w.no_kk && <span>KK: <strong className="font-mono text-slate-700">{w.no_kk}</strong></span>}
-                                    {w.nik && <span>• NIK: <span className="font-mono text-slate-600">{w.nik}</span></span>}
-                                  </div>
-                                  {w.alamat_domisili && (
-                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                                      {w.alamat_domisili}
-                                    </p>
-                                  )}
-                                </div>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="p-4 text-center">
-                              <p className="text-xs font-semibold text-slate-700">Warga tidak ditemukan</p>
-                              <p className="text-[10.5px] text-slate-500 mt-1">
-                                Tidak ada data warga yang sesuai dengan pencarian "{wargaSearchTerm}".
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 flex items-start gap-2">
-                          <AlertCircle className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
-                          <p className="leading-relaxed">
-                            <strong>Nama Anda belum tercatat di data RT?</strong> Silakan hubungi Pengurus RT (Ketua/Sekretaris) untuk didaftarkan ke Data Warga terlebih dahulu.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      /* CARD WARGA TERPILIH & TERVERIFIKASI */
-                      <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white border-2 border-emerald-500 shadow-xs animate-in fade-in">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                              <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800 block">
-                                Warga Terhubung (Terverifikasi)
-                              </span>
-                              <span className="text-sm font-bold text-slate-900 block">
-                                {selectedCitizen.nama_lengkap}
-                              </span>
-                            </div>
-                          </div>
+                        <input
+                          type="text"
+                          value={wargaSearchTerm}
+                          onChange={(e) => {
+                            setWargaSearchTerm(e.target.value);
+                            setIsWargaDropdownOpen(true);
+                          }}
+                          onFocus={() => setIsWargaDropdownOpen(true)}
+                          placeholder="Ketik Nama KK / NIK / No. KK / Alamat..."
+                          className="w-full pl-12 pr-10 py-2.5 bg-slate-50/70 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all shadow-2xs"
+                        />
+                        {wargaSearchTerm && (
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedCitizen(null);
-                              setNama('');
+                              setWargaSearchTerm('');
+                              setIsWargaDropdownOpen(true);
                             }}
-                            className="px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200 rounded-lg border border-emerald-300 cursor-pointer transition-colors"
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
                           >
-                            Ganti Pilihan
+                            <X className="w-4 h-4" />
                           </button>
-                        </div>
+                        )}
+                      </div>
 
-                        <div className="mt-2.5 pt-2.5 border-t border-emerald-200/80 grid grid-cols-2 gap-2 text-[11px]">
-                          <div>
-                            <span className="text-slate-500 text-[10px] block">No. KK (ID Akun Warga):</span>
-                            <span className="font-mono font-bold text-emerald-950">
-                              {selectedCitizen.no_kk || '(Belum ada No. KK)'}
-                            </span>
+                      {/* Dropdown / List Hasil Pencarian Warga */}
+                      <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-100">
+                        {isLoadingWargaList ? (
+                          <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                            <span>Memuat daftar warga RT...</span>
                           </div>
-                          <div>
-                            <span className="text-slate-500 text-[10px] block">NIK Kependudukan:</span>
-                            <span className="font-mono text-slate-700">
-                              {selectedCitizen.nik || '-'}
-                            </span>
+                        ) : filteredDataWarga.length > 0 ? (
+                          filteredDataWarga.map((w) => (
+                            <button
+                              key={w.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCitizen(w);
+                                setNama(w.nama_lengkap);
+                                if (w.no_hp) setNoHp(w.no_hp);
+                                setIsWargaDropdownOpen(false);
+                                setErrorMessage(null);
+                              }}
+                              className="w-full p-2.5 text-left hover:bg-emerald-50/80 active:bg-emerald-100/70 transition-colors flex items-start gap-2.5 group cursor-pointer"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center text-xs font-bold shrink-0 transition-colors mt-0.5">
+                                {w.nama_lengkap.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-xs font-bold text-slate-900 group-hover:text-emerald-950 truncate">
+                                    {w.nama_lengkap}
+                                    {hasAccountMap[w.id] && (
+                                      <span className="text-rose-600 font-extrabold text-[10px] ml-1"> (sudah terdaftar)</span>
+                                    )}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
+                                    Pilih
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10.5px] text-slate-500 mt-0.5 flex-wrap">
+                                  {w.no_kk && <span>KK: <strong className="font-mono text-slate-700">{w.no_kk}</strong></span>}
+                                  {w.nik && <span>• NIK: <span className="font-mono text-slate-600">{w.nik}</span></span>}
+                                </div>
+                                {w.alamat_domisili && (
+                                  <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                    {w.alamat_domisili}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center">
+                            <p className="text-xs font-semibold text-slate-700">Warga tidak ditemukan</p>
+                            <p className="text-[10.5px] text-slate-500 mt-1">
+                              Tidak ada data warga yang sesuai dengan pencarian "{wargaSearchTerm}".
+                            </p>
                           </div>
-                          {selectedCitizen.alamat_domisili && (
-                            <div className="col-span-2 mt-0.5">
-                              <span className="text-slate-500 text-[10px] block">Alamat Domisili:</span>
-                              <span className="text-slate-700">
-                                {selectedCitizen.alamat_domisili}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  /* INPUT NAMA MANUAL UNTUK PENGURUS */
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Nama Lengkap Pengurus RT</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-                          <User className="w-3.5 h-3.5" />
-                        </div>
+
+                      <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-300 text-[11px] text-amber-950 flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="leading-relaxed">
+                          <strong>Nama Anda belum tercatat di data RT?</strong> Baik Pengurus maupun Warga wajib terdaftar di Buku Data Warga terlebih dahulu sebelum membuat akun. Silakan hubungi Pengurus RT (Ketua/Sekretaris) untuk didaftarkan ke Data Warga.
+                        </p>
                       </div>
-                      <input
-                        type="text"
-                        required
-                        value={nama}
-                        onChange={(e) => setNama(e.target.value)}
-                        placeholder="contoh: Bambang Sutrisno"
-                        className="w-full pl-12 pr-3.5 py-2.5 bg-slate-50/70 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all shadow-2xs"
-                      />
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    /* CARD WARGA / PENGURUS TERPILIH & TERVERIFIKASI */
+                    <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white border-2 border-emerald-500 shadow-xs animate-in fade-in">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800 block">
+                              {role === 'Warga' ? 'Warga Terhubung (Terverifikasi)' : `Pengurus Terhubung: ${role}`}
+                            </span>
+                            <span className="text-sm font-bold text-slate-900 block">
+                              {selectedCitizen.nama_lengkap}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCitizen(null);
+                            setNama('');
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200 rounded-lg border border-emerald-300 cursor-pointer transition-colors"
+                        >
+                          Ganti Pilihan
+                        </button>
+                      </div>
+
+                      <div className="mt-2.5 pt-2.5 border-t border-emerald-200/80 grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <span className="text-slate-500 text-[10px] block">No. KK (ID Kependudukan):</span>
+                          <span className="font-mono font-bold text-emerald-950">
+                            {selectedCitizen.no_kk || '(Belum ada No. KK)'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 text-[10px] block">NIK Kependudukan:</span>
+                          <span className="font-mono text-slate-700">
+                            {selectedCitizen.nik || '-'}
+                          </span>
+                        </div>
+                        {selectedCitizen.alamat_domisili && (
+                          <div className="col-span-2 mt-0.5">
+                            <span className="text-slate-500 text-[10px] block">Alamat Domisili:</span>
+                            <span className="text-slate-700">
+                              {selectedCitizen.alamat_domisili}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Pilihan Jenis Pengguna & Hak Akses dengan Warna Kontras */}
                 <div>
