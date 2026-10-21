@@ -93,15 +93,57 @@ function supabaseProxyPlugin(): Plugin {
     name: 'vite-plugin-db-query-proxy',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url && req.url.startsWith('/api/db-query-service')) {
-          if (req.method === 'OPTIONS') {
-            res.statusCode = 204;
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', '*');
-            res.end();
-            return;
-          }
+            if (req.url && (req.url.startsWith('/api/ping') || req.url.startsWith('/api/cron-keepalive'))) {
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+
+              const primaryFallbackUrl = getEnvSupabaseUrl();
+              let anonKey = '';
+              try {
+                const envPath = path.resolve(process.cwd(), '.env');
+                if (fs.existsSync(envPath)) {
+                  const content = fs.readFileSync(envPath, 'utf-8');
+                  const match = content.match(/VITE_SUPABASE_ANON_KEY\s*=\s*["']?([^"'\r\n]+)["']?/);
+                  if (match && match[1]) anonKey = match[1].trim().replace(/^["']+|["']+$/g, '');
+                }
+              } catch {}
+
+              let supabaseStatus = 'not_configured';
+              if (primaryFallbackUrl && anonKey) {
+                try {
+                  const pingTarget = `${primaryFallbackUrl.replace(/\/+$/, '')}/rest/v1/kas_rt?select=id&limit=1`;
+                  const dbRes = await fetch(pingTarget, {
+                    method: 'GET',
+                    headers: {
+                      'apikey': anonKey,
+                      'Authorization': `Bearer ${anonKey}`
+                    }
+                  });
+                  supabaseStatus = dbRes.ok ? 'connected' : `http_${dbRes.status}`;
+                } catch (err: any) {
+                  supabaseStatus = `error: ${err.message || 'connection_failed'}`;
+                }
+              }
+
+              res.statusCode = 200;
+              res.end(JSON.stringify({
+                status: 'ok',
+                service: 'Kas RT.002 RW.09 API Ping',
+                supabase: supabaseStatus,
+                timestamp: new Date().toISOString()
+              }));
+              return;
+            }
+
+            if (req.url && req.url.startsWith('/api/db-query-service')) {
+              if (req.method === 'OPTIONS') {
+                res.statusCode = 204;
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+                res.setHeader('Access-Control-Allow-Headers', '*');
+                res.end();
+                return;
+              }
 
           try {
             const targetPath = req.url.replace(/^\/api\/db-query-service/, '');

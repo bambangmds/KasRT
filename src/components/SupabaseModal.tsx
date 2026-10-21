@@ -10,7 +10,9 @@ import {
   AlertTriangle, 
   Table, 
   Check, 
-  Copy 
+  Copy,
+  Clock,
+  Activity
 } from 'lucide-react';
 import {
   getActiveSupabaseConfig,
@@ -43,6 +45,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [copiedCronUrl, setCopiedCronUrl] = useState(false);
 
   const [isFromEnv, setIsFromEnv] = useState(false);
 
@@ -123,6 +126,16 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
     setCopiedSql(true);
     onTriggerToast('Query SQL tabel kas_rt berhasil disalin ke clipboard!', 'success');
     setTimeout(() => setCopiedSql(false), 2500);
+  };
+
+  const handleCopyCronUrl = () => {
+    const cronPingUrl = url && anonKey 
+      ? `${url.replace(/\/+$/, '')}/rest/v1/kas_rt?select=id&limit=1&apikey=${anonKey}`
+      : `${window.location.origin}/api/cron-keepalive`;
+    navigator.clipboard.writeText(cronPingUrl);
+    setCopiedCronUrl(true);
+    onTriggerToast('URL Ping Cron-Job (bebas 401) berhasil disalin ke clipboard!', 'success');
+    setTimeout(() => setCopiedCronUrl(false), 2500);
   };
 
   return (
@@ -284,6 +297,40 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
               <p className="text-[11px] text-slate-500">
                 Skema SQL mencakup pembuatan 5 tabel lengkap: transaksi <code className="font-semibold text-slate-800">kas_rt</code>, master <code className="font-semibold text-slate-800">kategori</code>, akun & hak akses <code className="font-semibold text-slate-800">pengguna</code> (dengan kolom no_hp), kependudukan <code className="font-semibold text-slate-800">data_warga</code>, serta profil wilayah <code className="font-semibold text-slate-800">sekretariat</code> (RT, RW, Kelurahan, Alamat).
               </p>
+            </div>
+
+            {/* Cron-Job.org / Keep-Alive Helper Box */}
+            <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  Pencegah Sleep Supabase (Cron-Job.org)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyCronUrl}
+                  className="text-xs font-semibold text-amber-800 hover:text-amber-950 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  {copiedCronUrl ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                  {copiedCronUrl ? 'URL Tersalin!' : 'Salin URL Cron-Job'}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-amber-800/90 leading-relaxed">
+                Supabase Free Tier otomatis tidur (*pause*) jika tidak ada aktivitas selama beberapa hari. Gunakan URL siap pakai ini di Cron-Job.org (sudah dilengkapi <code className="font-mono bg-white/70 px-1 rounded text-amber-900">apikey</code> agar bebas 401 Unauthorized):
+              </p>
+              <div className="p-2 bg-white rounded-lg border border-amber-200 text-[10px] font-mono text-slate-700 break-all select-all flex items-center justify-between gap-2">
+                <span className="truncate">
+                  {url && anonKey
+                    ? `${url.replace(/\/+$/, '')}/rest/v1/kas_rt?select=id&limit=1&apikey=${anonKey.slice(0, 12)}...`
+                    : `${window.location.origin}/api/cron-keepalive`}
+                </span>
+                <Activity className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              </div>
             </div>
 
             {/* Action Buttons */}

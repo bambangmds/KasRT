@@ -497,6 +497,14 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
     - **Pesan Penolakan Jelas**: Jika nama pemohon tidak ditemukan di Data Warga, sistem secara mutlak menolak pendaftaran dengan pesan: *"Pendaftaran Ditolak! Anda belum terdaftar di Buku Data Warga. Seluruh Pengurus maupun Warga wajib terdaftar di Data Warga terlebih dahulu sebelum dapat membuat akun."*
     - **Relasi Otomatis**: NIK, No. KK, Alamat Domisili, dan ID Warga (`warga_id`) otomatis terhubung secara relasional saat akun didaftarkan.
 
+59. **Resolusi Error 401 Cron-Job.org & Endpoint Keep-Alive Supabase (`vite.config.ts` & `SupabaseModal.tsx`)**:
+    - **Penyebab Error 401**: PostgREST / REST API Supabase mewajibkan `apikey` header atau query parameter untuk seluruh request. Pinging tanpa `apikey` menghasilkan `401 Unauthorized`.
+    - **Penyediaan Endpoint Ping Backend (`/api/ping` & `/api/cron-keepalive`)**:
+      - Ditambahkan pada proxy server `vite.config.ts`.
+      - Menerima ping publik dari Cron-Job.org tanpa error 401 dan secara aman mengeksekusi request ringan ke Supabase dengan menyertakan `apikey` secara otomatis dari server environment.
+    - **Penyediaan Panel & Tombol 'Salin URL Cron-Job' di Modal Supabase**:
+      - Menyediakan tombol 1-klik **"Salin URL Cron-Job"** di `SupabaseModal.tsx` yang secara otomatis menyalin URL lengkap yang sudah dilengkapi query string `&apikey=...` sesuai kredensial Supabase aktif.
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
@@ -504,4 +512,5 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
 - [ ] Pencatatan data nomor rumah / blok warga untuk rekap pembayaran iuran per KK.
 - [ ] Penambahan hak akses atau password proteksi untuk menu Koreksi/Hapus.
 - [ ] Fitur unduh laporan bulanan siap cetak dalam format PDF resmi RT.
+
 
