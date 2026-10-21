@@ -1,0 +1,4 @@
+VITE_SUPABASE_URL="https://dpoikjyggaenldtxchvs.supabase.co/rest/v1/" 
+VITE_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb2lranlnZ2FlbmxkdHhjaHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NzM5MzQsImV4cCI6MjEwNTU0OTkzNH0.9CWiUROXQPUhF3KGYQvtROuErg-KOSlvsk0YnysAALQ"
+
+

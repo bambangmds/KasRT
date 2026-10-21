@@ -511,6 +511,17 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
       - Memeriksa secara fleksibel mencakup seluruh variasi kata kunci `'kontrak'` atau `'kos'` (case-insensitive).
       - Menghitung secara akurat jumlah warga dengan status Kontrak / Kos pada kartu metrik atas, serta mendukung penyaringan pada tombol filter status (Semua, Tetap, Kontrak).
 
+61. **Pembaruan Label Satuan "KK warga" Biru Jelas pada Kartu Statistik Warga (`DataWargaSection.tsx`)**:
+    - Teks satuan angka "Jiwa" yang samar pada kartu statistik **TOTAL WARGA**, **WARGA TETAP**, dan **KONTRAK / KOS** telah diganti dengan teks **"KK warga"** berwarna biru jelas (`text-blue-600 font-bold`).
+
+62. **Penyegaran Warna Tombol Mode Bayar Iuran Warga (`TransaksiIuranSection.tsx`)**:
+    - Tombol **1. Bayar Tunggal (Perorangan)** kini menggunakan warna dasar **Orange / Amber** hangat (`from-orange-500 via-amber-500 to-orange-600` dengan bayangan `shadow-orange-500/30`).
+    - Tombol **2. Bayar Serempak (Banyak Warga)** kini menggunakan warna **Biru Gradasi** modern (`from-blue-600 via-indigo-600 to-blue-700` dengan bayangan `shadow-blue-600/30`).
+    - Tombol eksekusi utama *"Catat & Simpan Setoran Iuran"* di bagian bawah formulir secara dinamis ikut menyesuaikan skema warna sesuai mode pembayaran aktif yang dipilih.
+
+63. **Penghapusan Kartu/Frame Status Supabase (`kas_rt Live`) di Sidebar (`Sidebar.tsx`)**:
+    - Kartu indikator status Supabase (`Supabase: kas_rt (Live)`) pada bagian bawah navigasi Sidebar telah dihapus secara bersih agar tampilan Sidebar lebih ringkas dan fokus pada menu navigasi serta profil pengguna.
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
