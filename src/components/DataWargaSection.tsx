@@ -126,6 +126,15 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
     }
   };
 
+  // Helper kriteria status_warga
+  const isTetap = (w: any) => !w.status_warga || w.status_warga === 'Warga Tetap';
+  const isKontrak = (w: any) => Boolean(
+    w.status_warga && (
+      w.status_warga.toLowerCase().includes('kontrak') || 
+      w.status_warga.toLowerCase().includes('kos')
+    )
+  );
+
   // Filter logic
   const filteredWarga = dataWarga.filter(w => {
     const q = searchTerm.toLowerCase();
@@ -136,15 +145,19 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
       (w.alamat_domisili || '').toLowerCase().includes(q) ||
       (w.no_hp || '').includes(q);
 
-    const matchStatus = statusFilter === 'All' || w.status_warga === statusFilter;
+    const matchStatus = 
+      statusFilter === 'All' ? true :
+      statusFilter === 'Warga Tetap' ? isTetap(w) :
+      isKontrak(w);
+
     return matchSearch && matchStatus;
   });
 
   // Statistik ringkas
   const totalJiwa = dataWarga.length;
-  const totalTetap = dataWarga.filter(w => w.status_warga === 'Warga Tetap').length;
-  const totalKontrak = dataWarga.filter(w => w.status_warga === 'Kontrak / Kos' || w.status_warga === 'Kontrak').length;
-  const totalPunyaHp = dataWarga.filter(w => Boolean(w.no_hp && w.no_hp.trim() !== '-')).length;
+  const totalTetap = dataWarga.filter(isTetap).length;
+  const totalKontrak = dataWarga.filter(isKontrak).length;
+  const totalPunyaHp = dataWarga.filter(w => Boolean(w.no_hp && w.no_hp.trim() !== '' && w.no_hp.trim() !== '-')).length;
 
   return (
     <div className="space-y-6">
@@ -163,7 +176,7 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
             <div className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider">Warga Tetap</div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">{totalTetap} <span className="text-xs font-normal text-emerald-500">KK</span></div>
+            <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">{totalTetap} <span className="text-xs font-normal text-emerald-500">Jiwa</span></div>
           </div>
           <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
             <Home className="w-5 h-5" />
@@ -306,7 +319,7 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
                     <td className="p-3.5">
                       <div className="flex flex-col items-start gap-1">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                          w.status_warga === 'Warga Tetap' 
+                          isTetap(w) 
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                             : 'bg-blue-50 text-blue-700 border-blue-200'
                         }`}>

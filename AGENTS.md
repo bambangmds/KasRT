@@ -505,6 +505,12 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
     - **Penyediaan Panel & Tombol 'Salin URL Cron-Job' di Modal Supabase**:
       - Menyediakan tombol 1-klik **"Salin URL Cron-Job"** di `SupabaseModal.tsx` yang secara otomatis menyalin URL lengkap yang sudah dilengkapi query string `&apikey=...` sesuai kredensial Supabase aktif.
 
+60. **Perbaikan Kalkulasi & Penyaringan Status Warga "Kontrak / Kos" (`DataWargaSection.tsx`)**:
+    - **Penyebab Kartu Metrik Kontrak Kos Kosong**: Sebelumnya, penanganan `status_warga` di `DataWargaSection.tsx` menggunakan perbandingan persis `w.status_warga === 'Kontrak / Kos' || w.status_warga === 'Kontrak'`. Data warga di Supabase yang disimpan melalui formulir modal (`TambahWargaModal.tsx`) dapat bernilai `'Warga Pendatang/Kontrak'`, `'Warga Kos'`, `'Warga Pendatang / Kontrak'`, atau `'Kontrak / Kos'`.
+    - **Penerapan Helper Cerdas `isKontrak` & `isTetap`**:
+      - Memeriksa secara fleksibel mencakup seluruh variasi kata kunci `'kontrak'` atau `'kos'` (case-insensitive).
+      - Menghitung secara akurat jumlah warga dengan status Kontrak / Kos pada kartu metrik atas, serta mendukung penyaringan pada tombol filter status (Semua, Tetap, Kontrak).
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
