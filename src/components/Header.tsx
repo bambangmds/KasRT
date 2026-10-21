@@ -14,6 +14,7 @@ interface HeaderProps {
   onLogout?: () => void;
   onPreviewLogin?: () => void;
   onOpenPhotoModal?: () => void;
+  onOpenSupabaseModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onPreviewLogin,
   onOpenPhotoModal,
+  onOpenSupabaseModal,
 }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -201,14 +203,15 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Interactive Supabase DB status badge */}
         <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 shadow-2xs ${
+          onClick={onOpenSupabaseModal}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 shadow-2xs cursor-pointer hover:scale-105 active:scale-95 ${
             isConnected
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
               : isConnecting
-              ? 'bg-sky-50 text-sky-800 border-sky-200'
-              : 'bg-slate-50 text-slate-600 border-slate-200'
+              ? 'bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100'
+              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
           }`}
-          title="Status Database Supabase"
+          title="Klik untuk membuka Konfigurasi Database Supabase & URL Cron-Job"
         >
           {isConnected ? (
             <Database className="w-3.5 h-3.5 text-emerald-600" />

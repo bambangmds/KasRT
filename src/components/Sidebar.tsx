@@ -39,6 +39,7 @@ interface SidebarProps {
   onLogout?: () => void;
   onOpenPhotoModal?: () => void;
   onTriggerSos?: () => void;
+  onOpenSupabaseModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -52,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onOpenPhotoModal,
   onTriggerSos,
+  onOpenSupabaseModal,
 }) => {
   const { wilayahShort, kelurahanLabel } = useSekretariat();
   const isAdmin = (activeUser?.levelAkses || 'Admin') === 'Admin';
@@ -500,14 +502,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         <div
-          className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all duration-200 text-left shadow-md group ${
+          onClick={onOpenSupabaseModal}
+          className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all duration-200 text-left shadow-md group cursor-pointer hover:border-slate-500 hover:scale-[1.02] active:scale-98 ${
             isConnected
               ? 'bg-gradient-to-r from-slate-800/90 to-emerald-950/40 border-emerald-500/40 text-white'
               : isConnecting
               ? 'bg-gradient-to-r from-slate-800/90 to-sky-950/40 border-sky-500/40 text-white'
               : 'bg-slate-800/90 border-slate-700/80 text-slate-200'
           }`}
-          title="Status Koneksi Database"
+          title="Klik untuk membuka Konfigurasi Database Supabase & URL Cron-Job"
         >
           <div className="flex items-center gap-2.5">
             <div className="relative flex items-center justify-center">

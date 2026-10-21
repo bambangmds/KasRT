@@ -39,6 +39,7 @@ interface KelolaDataViewProps {
   isRefreshing: boolean;
   onOpenImport: () => void;
   onTriggerToast: (msg: string, type?: 'success' | 'error' | 'info', title?: string) => void;
+  onOpenSupabaseModal?: () => void;
 }
 
 export const KelolaDataView: React.FC<KelolaDataViewProps> = ({
@@ -49,6 +50,7 @@ export const KelolaDataView: React.FC<KelolaDataViewProps> = ({
   isRefreshing,
   onOpenImport,
   onTriggerToast,
+  onOpenSupabaseModal,
 }) => {
   const { sekretariat, wilayahShort, kelurahanLabel } = useSekretariat();
 
@@ -118,12 +120,13 @@ export const KelolaDataView: React.FC<KelolaDataViewProps> = ({
           </button>
 
           <div
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all shadow-2xs ${
+            onClick={onOpenSupabaseModal}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all shadow-2xs cursor-pointer hover:scale-105 active:scale-95 ${
               isConnected
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                : 'bg-amber-50 text-amber-800 border-amber-300'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
             }`}
-            title="Status Database Supabase"
+            title="Klik untuk membuka Konfigurasi Database Supabase & URL Cron-Job"
           >
             <span className="relative flex h-2 w-2">
               {isConnected && (

@@ -1119,6 +1119,7 @@ export default function App() {
         onLogout={handleLogout}
         onOpenPhotoModal={() => setIsUserPhotoModalOpen(true)}
         onTriggerSos={() => setIsTriggerSosModalOpen(true)}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -1133,6 +1134,7 @@ export default function App() {
           onLogout={handleLogout}
           onPreviewLogin={() => setIsPreviewingLogin(true)}
           onOpenPhotoModal={() => setIsUserPhotoModalOpen(true)}
+          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         />
 
         {/* View Main Container */}
@@ -1248,6 +1250,7 @@ export default function App() {
               isRefreshing={isFetchingSupabase}
               onOpenImport={handleOpenImport}
               onTriggerToast={showToast}
+              onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
             />
           )}
 
