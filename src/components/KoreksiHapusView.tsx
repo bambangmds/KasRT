@@ -443,38 +443,41 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4.5 bg-gradient-to-br from-white via-white to-slate-50 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+        {/* TOTAL SELURUH CATATAN - Royal Indigo */}
+        <div className="p-4.5 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-2xl border border-indigo-700/80 shadow-md flex items-center justify-between group hover:shadow-lg transition-all">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Seluruh Catatan</span>
-            <div className="text-xl font-extrabold text-slate-900 mt-1">
-              {transactions.length} <span className="text-xs font-semibold text-slate-500 font-sans">Transaksi</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Total Seluruh Catatan</span>
+            <div className="text-xl font-extrabold text-white mt-1">
+              {transactions.length} <span className="text-xs font-semibold text-indigo-200 font-sans">Transaksi</span>
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md shadow-slate-900/20 ring-2 ring-slate-200">
+          <div className="w-11 h-11 rounded-xl bg-indigo-600/50 text-indigo-100 border border-indigo-400/30 flex items-center justify-center shadow-xs shrink-0">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           </div>
         </div>
 
-        <div className="p-4.5 bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/40 rounded-2xl border border-emerald-200/90 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+        {/* KAS MASUK TERCATAT - Emerald Green */}
+        <div className="p-4.5 bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 text-white rounded-2xl border border-emerald-700/80 shadow-md flex items-center justify-between group hover:shadow-lg transition-all">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Kas Masuk Tercatat</span>
-            <div className="text-xl font-extrabold text-emerald-800 mt-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Kas Masuk Tercatat</span>
+            <div className="text-xl font-extrabold text-white mt-1">
               {formatSimpleRupiah(totalMasukNominal)}
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/30 ring-2 ring-emerald-200/60">
+          <div className="w-11 h-11 rounded-xl bg-emerald-600/50 text-emerald-100 border border-emerald-400/30 flex items-center justify-center shadow-xs shrink-0">
             <ArrowDownLeft className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="p-4.5 bg-gradient-to-br from-white via-rose-50/20 to-pink-50/40 rounded-2xl border border-rose-200/90 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+        {/* KAS KELUAR TERCATAT - Warm Rose / Pink */}
+        <div className="p-4.5 bg-gradient-to-br from-rose-950 via-rose-900 to-slate-900 text-white rounded-2xl border border-rose-700/80 shadow-md flex items-center justify-between group hover:shadow-lg transition-all">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700">Kas Keluar Tercatat</span>
-            <div className="text-xl font-extrabold text-rose-700 mt-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-200">Kas Keluar Tercatat</span>
+            <div className="text-xl font-extrabold text-white mt-1">
               {formatSimpleRupiah(totalKeluarNominal)}
             </div>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-600 text-white flex items-center justify-center shadow-md shadow-rose-600/30 ring-2 ring-rose-200/60">
+          <div className="w-11 h-11 rounded-xl bg-rose-600/50 text-rose-100 border border-rose-400/30 flex items-center justify-center shadow-xs shrink-0">
             <ArrowUpRight className="w-5 h-5" />
           </div>
         </div>
@@ -519,9 +522,9 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
               </button>
             </div>
 
-            {/* Input Pencarian */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            {/* Input Pencarian dengan warna abu-abu tebal (bg-slate-800 border-slate-700) */}
+            <div className="relative flex-1 bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
               <input
                 type="text"
                 placeholder={
@@ -534,13 +537,13 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-8 py-2.5 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 transition-all font-medium"
+                className="w-full pl-10 pr-8 py-2 bg-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-300 outline-none font-medium"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white cursor-pointer"
                   title="Hapus pencarian"
                 >
                   <X className="w-4 h-4" />
@@ -680,14 +683,14 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
-                <th className="py-2.5 px-3.5 sm:px-4">ID Transaksi</th>
-                <th className="py-2.5 px-3.5 sm:px-4">Tanggal</th>
-                <th className="py-2.5 px-3.5 sm:px-4">Tipe</th>
-                <th className="py-2.5 px-3.5 sm:px-4">Kategori</th>
-                <th className="py-2.5 px-3.5 sm:px-4 text-right">Jumlah (Rp)</th>
-                <th className="py-2.5 px-3.5 sm:px-4">Keterangan</th>
-                <th className="py-2.5 px-3.5 sm:px-4 text-center">Aksi</th>
+              <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">ID Transaksi</th>
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Tanggal</th>
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Tipe</th>
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Kategori</th>
+                <th className="py-3 px-3.5 sm:px-4 text-right text-white font-bold bg-slate-950">Jumlah (Rp)</th>
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Keterangan</th>
+                <th className="py-3 px-3.5 sm:px-4 text-center text-white font-bold bg-slate-950">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-xs">

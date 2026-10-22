@@ -168,7 +168,7 @@ export const HapusDataModal: React.FC<HapusDataModalProps> = ({
         warning: 'Daftar data warga RT akan dikosongkan secara permanen. Catatan transaksi kas yang merujuk pada nama warga tertentu di masa lalu akan kehilangan keterkaitannya.',
         confirmWord: 'HAPUS TABEL DATA_WARGA',
         count: wargaCount,
-        unit: 'jiwa warga',
+        unit: 'KK warga',
       },
       {
         id: 'inventaris_rt',

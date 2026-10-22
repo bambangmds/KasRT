@@ -761,9 +761,9 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
                 </button>
               </div>
 
-              {/* Input Pencarian */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              {/* Input Pencarian dengan warna abu-abu tebal (bg-slate-800 border-slate-700) */}
+              <div className="relative bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
                 <input
                   type="text"
                   placeholder={
@@ -776,13 +776,13 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="pl-9 pr-8 py-2 rounded-xl bg-slate-50 text-slate-900 outline-none text-xs w-full sm:w-64 border border-slate-200 focus:bg-white focus:border-slate-400 transition-all font-medium"
+                  className="pl-9 pr-8 py-1.5 rounded-lg bg-slate-800 text-white placeholder-slate-300 outline-none text-xs w-full sm:w-64 font-medium"
                 />
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white cursor-pointer"
                     title="Hapus pencarian"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -934,12 +934,12 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
-                <th className="py-2.5 px-3.5 sm:px-4">Tanggal</th>
-                <th className="py-2.5 px-3.5 sm:px-4">Jenis</th>
-                <th className="py-2.5 px-3.5 sm:px-4">Kategori</th>
-                <th className="py-2.5 px-3.5 sm:px-4">Keterangan</th>
-                <th className="py-2.5 px-3.5 sm:px-4 text-right">Jumlah</th>
+              <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Tanggal</th>
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Jenis</th>
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Kategori</th>
+                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Keterangan</th>
+                <th className="py-3 px-3.5 sm:px-4 text-right text-white font-bold bg-slate-950">Jumlah</th>
                 <th className="py-2.5 px-3.5 sm:px-4 text-center">Status DB</th>
               </tr>
             </thead>

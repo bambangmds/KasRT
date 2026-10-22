@@ -690,3 +690,234 @@ export function exportToMySQL(
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+import { EmergencyAlertItem, fetchAllPengurusFromSupabase } from './supabase';
+
+/**
+ * Konversi logo RT (SVG) dari /rt_logo.svg menjadi Base64 PNG Data URL untuk disisipkan ke PDF
+ */
+export function getRtLogoBase64(): Promise<string | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 240;
+        canvas.height = img.naturalHeight || 240;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+          return;
+        }
+      } catch (e) {
+        console.warn('[getRtLogoBase64] Canvas error', e);
+      }
+      resolve(null);
+    };
+    img.onerror = () => resolve(null);
+    img.src = '/rt_logo.svg';
+  });
+}
+
+/**
+ * Ekspor data warga ke format PDF Laporan Resmi Kependudukan
+ */
+export async function exportDataWargaPDF(
+  wargaList: any[],
+  options: {
+    sekretariat?: {
+      rt?: string;
+      rw?: string;
+      kelurahan?: string;
+      kecamatan?: string;
+      alamat?: string;
+      kota_kabupaten?: string;
+      provinsi?: string;
+      nama_ketua_rt?: string;
+    };
+    pengguna?: SupabasePengurusRow[];
+    filterLabel?: string;
+    filename?: string;
+  } = {}
+): Promise<void> {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  const rtStr = options.sekretariat?.rt || '002';
+  const rwStr = options.sekretariat?.rw || '09';
+  const kelStr = (options.sekretariat?.kelurahan || 'Pondok Rajeg').toUpperCase();
+  const kecStr = (options.sekretariat?.kecamatan || 'Cibinong').toUpperCase();
+  const alamatStr = options.sekretariat?.alamat || `RT.${rtStr} RW.${rwStr}, Kel. ${options.sekretariat?.kelurahan || 'Pondok Rajeg'}`;
+
+  // Ambil data pengguna dari database/options jika belum ada
+  let penggunaList: SupabasePengurusRow[] = options.pengguna || [];
+  if (!penggunaList || penggunaList.length === 0) {
+    try {
+      penggunaList = await fetchAllPengurusFromSupabase();
+    } catch {}
+  }
+
+  // Cari data Ketua RT dari tabel pengguna
+  const ketuaUser = penggunaList.find((p) => 
+    p.jabatan && p.jabatan.toLowerCase().includes('ketua')
+  ) || penggunaList.find((p) => p.level_akses === 'Admin') || penggunaList[0];
+
+  const ketuaNama = ketuaUser?.nama || options.sekretariat?.nama_ketua_rt || 'Bpk. Ketua RT';
+  const ketuaJabatan = ketuaUser?.jabatan || `Ketua RT.${rtStr} RW.${rwStr}`;
+
+  // Coba ambil logo RT
+  let logoDataUrl: string | null = null;
+  try {
+    logoDataUrl = await getRtLogoBase64();
+  } catch (e) {
+    console.warn('[PDF Export] Logo load error', e);
+  }
+
+  const startX = logoDataUrl ? 33 : 14;
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', 14, 11, 16, 16);
+  }
+
+  // Kop Surat
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`PENGURUS RUKUN TETANGGA ${rtStr} RUKUN WARGA ${rwStr}`, startX, 15);
+
+  doc.setFontSize(10);
+  doc.text(`KELURAHAN ${kelStr}${kecStr ? `, KECAMATAN ${kecStr}` : ''}`, startX, 21);
+
+  doc.setFontSize(8.5);
+  doc.setFont('Helvetica', 'normal');
+  doc.text(`Alamat Sekretariat: ${alamatStr}`, startX, 26);
+
+  // Garis Pembatas
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(0.8);
+  doc.line(14, 29, 283, 29);
+  doc.setLineWidth(0.2);
+  doc.line(14, 30, 283, 30);
+
+  // Judul Laporan
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text(`LAPORAN DATA KEPENDUDUKAN & WARGA RT.${rtStr} RW.${rwStr}`, 14, 37);
+
+  doc.setFontSize(8.5);
+  doc.setFont('Helvetica', 'normal');
+  const filterLabel = options.filterLabel || 'Semua Data Warga';
+  const tglCetak = new Date().toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  
+  const totalTetap = wargaList.filter(w => !w.status_warga || w.status_warga === 'Warga Tetap').length;
+  const totalKontrak = wargaList.length - totalTetap;
+
+  // Hapus '/Jiwa' -> gunakan 'Total: xx KK'
+  doc.text(`Kategori: ${filterLabel} | Total: ${wargaList.length} KK (${totalTetap} Tetap, ${totalKontrak} Kontrak/Kos) | Tanggal Cetak: ${tglCetak}`, 14, 42);
+
+  // Tabel Data Warga
+  const tableHeaders = [
+    ['NO', 'NAMA LENGKAP', 'NIK / NO. KK', 'L/P', 'PEKERJAAN', 'ALAMAT DOMISILI', 'STATUS WARGA', 'NO. TELEPON / WA']
+  ];
+
+  const tableBody = wargaList.map((w, idx) => {
+    const statusText = w.status_warga || 'Warga Tetap';
+    const nikKk = `NIK: ${w.nik || '-'}\nKK: ${w.no_kk || '-'}`;
+    const gender = w.jenis_kelamin === 'Perempuan' ? 'P' : 'L';
+    return [
+      idx + 1,
+      w.nama_lengkap || '-',
+      nikKk,
+      gender,
+      w.pekerjaan || '-',
+      w.alamat_domisili || `RT.${rtStr} RW.${rwStr}`,
+      statusText,
+      w.no_hp || '-'
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 46,
+    head: tableHeaders,
+    body: tableBody,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8.5,
+      halign: 'center',
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: [30, 41, 59],
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 46, fontStyle: 'bold' },
+      2: { cellWidth: 42 },
+      3: { cellWidth: 10, halign: 'center' },
+      4: { cellWidth: 35 },
+      5: { cellWidth: 54 },
+      6: { cellWidth: 32, halign: 'center' },
+      7: { cellWidth: 35 },
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  // Tanda Tangan
+  const finalY = (doc as any).lastAutoTable?.finalY || 150;
+  const signY = finalY + 10 > 170 ? 170 : finalY + 10;
+  const locationName = options.sekretariat?.kelurahan || options.sekretariat?.kota_kabupaten || 'Pondok Rajeg';
+
+  if (signY < 185) {
+    doc.setFontSize(8.5);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+
+    // Dynamic location string using kelurahan or city from sekretariat
+    doc.text(`${locationName}, ${tglCetak}`, 220, signY);
+    doc.text(`Mengetahui,`, 220, signY + 5);
+    
+    // Nama Ketua RT di atas garis (dari tabel pengguna field nama)
+    doc.setFont('Helvetica', 'bold');
+    doc.text(`${ketuaNama}`, 220, signY + 20);
+
+    // Garis tanda tangan (digeser ke bawah 2mm agar berjarak elegan dan tidak menempel dengan nama)
+    doc.setDrawColor(30, 41, 59);
+    doc.setLineWidth(0.4);
+    doc.line(220, signY + 23, 275, signY + 23);
+
+    // Jabatan Ketua RT di bawah garis (dari tabel pengguna field jabatan)
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`${ketuaJabatan}`, 220, signY + 28.5);
+  }
+
+  // Footer Nomor Halaman
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('Helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `Halaman ${i} dari ${pageCount} — Dokumen Resmi Data Warga RT.${rtStr} RW.${rwStr}`,
+      14,
+      202
+    );
+  }
+
+  const defaultFilename = `Laporan_Data_Warga_RT${rtStr}_RW${rwStr}_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(options.filename || defaultFilename);
+}
+

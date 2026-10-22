@@ -837,20 +837,21 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
                   </button>
                 )}
               </label>
-              <div className="relative">
+              {/* Filter Keterangan / Uraian dengan warna abu-abu tebal (bg-slate-800 border-slate-700) */}
+              <div className="relative bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
                 <input
                   type="text"
                   value={searchKeterangan}
                   onChange={(e) => setSearchKeterangan(e.target.value)}
                   placeholder="Ketik keterangan (cth: lampu, iuran...)"
-                  className="w-full pl-8 pr-7 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 font-medium"
+                  className="w-full pl-8 pr-7 py-2 bg-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-300 outline-none font-medium"
                 />
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-slate-300 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 {searchKeterangan && (
                   <button
                     type="button"
                     onClick={() => setSearchKeterangan('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 cursor-pointer"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white p-0.5 rounded-full cursor-pointer"
                     title="Kosongkan pencarian"
                   >
                     <X className="w-3 h-3" />
@@ -932,74 +933,69 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
         )}
       </div>
 
-      {/* 2. Tiga Kartu Metrik di Bagian Atas */}
+      {/* 2. Tiga Kartu Metrik di Bagian Atas - Masing-masing Warna Dasar Berbeda */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
-        {/* Kartu 1: Total Kas Masuk */}
-        <div className="bg-gradient-to-br from-white via-emerald-50/20 to-teal-50/40 rounded-2xl p-4.5 sm:p-5 relative overflow-hidden shadow-sm border border-emerald-200/90 group hover:shadow-md transition-all">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-500 via-teal-500 to-emerald-600" />
+        {/* Kartu 1: Total Kas Masuk - Emerald Green */}
+        <div className="bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 text-white rounded-2xl p-4.5 sm:p-5 relative overflow-hidden shadow-md border border-emerald-700/80 group hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-200 block">
                 Total Kas Masuk
               </span>
-              <span className="text-[10.5px] text-slate-400 font-medium">Pemasukan & Iuran Warga</span>
+              <span className="text-[10.5px] text-emerald-200/80 font-medium">Pemasukan & Iuran Warga</span>
             </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/30 ring-1 ring-emerald-200/60">
-              <TrendingUp className="w-4.5 h-4.5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600/50 text-emerald-100 border border-emerald-400/30 flex items-center justify-center shadow-xs">
+              <TrendingUp className="w-4.5 h-4.5 text-emerald-200" />
             </div>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 mb-1.5 tracking-tight">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white mb-1.5 tracking-tight">
             {formatRupiahClean(totalMasuk)}
           </div>
-          <div className="flex items-center gap-1.5 text-emerald-800 text-[11px] font-bold bg-emerald-100/60 px-2.5 py-0.5 rounded-lg w-fit border border-emerald-200/70">
-            <ArrowDownLeft className="w-3 h-3" />
+          <div className="flex items-center gap-1.5 text-emerald-200 text-[11px] font-bold bg-emerald-800/50 px-2.5 py-0.5 rounded-lg w-fit border border-emerald-500/30">
+            <ArrowDownLeft className="w-3 h-3 text-emerald-300" />
             <span>
               {countMasuk} transaksi penerimaan
             </span>
           </div>
         </div>
 
-        {/* Kartu 2: Total Kas Keluar */}
-        <div className="bg-gradient-to-br from-white via-rose-50/20 to-pink-50/40 rounded-2xl p-4.5 sm:p-5 relative overflow-hidden shadow-sm border border-rose-200/90 group hover:shadow-md transition-all">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-rose-500 via-pink-500 to-rose-600" />
+        {/* Kartu 2: Total Kas Keluar - Warm Rose / Pink */}
+        <div className="bg-gradient-to-br from-rose-950 via-rose-900 to-slate-900 text-white rounded-2xl p-4.5 sm:p-5 relative overflow-hidden shadow-md border border-rose-700/80 group hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+              <span className="text-xs font-bold uppercase tracking-wider text-rose-200 block">
                 Total Kas Keluar
               </span>
-              <span className="text-[10.5px] text-slate-400 font-medium">Pengeluaran & Operasional</span>
+              <span className="text-[10.5px] text-rose-200/80 font-medium">Pengeluaran & Operasional</span>
             </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-600 text-white flex items-center justify-center shadow-md shadow-rose-600/30 ring-1 ring-rose-200/60">
-              <TrendingDown className="w-4.5 h-4.5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-600/50 text-rose-100 border border-rose-400/30 flex items-center justify-center shadow-xs">
+              <TrendingDown className="w-4.5 h-4.5 text-rose-200" />
             </div>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 mb-1.5 tracking-tight">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white mb-1.5 tracking-tight">
             {formatRupiahClean(totalKeluar)}
           </div>
-          <div className="flex items-center gap-1.5 text-rose-800 text-[11px] font-bold bg-rose-100/60 px-2.5 py-0.5 rounded-lg w-fit border border-rose-200/70">
-            <ArrowUpRight className="w-3 h-3" />
+          <div className="flex items-center gap-1.5 text-rose-200 text-[11px] font-bold bg-rose-800/50 px-2.5 py-0.5 rounded-lg w-fit border border-rose-500/30">
+            <ArrowUpRight className="w-3 h-3 text-rose-300" />
             <span>
               {countKeluar} transaksi pengeluaran
             </span>
           </div>
         </div>
 
-        {/* Kartu 3: Saldo Akhir Saat Ini (Total Kas Masuk - Total Kas Keluar) */}
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 text-white rounded-2xl p-4.5 sm:p-5 relative overflow-hidden shadow-xl border border-slate-700/80 ring-1 ring-emerald-500/30 group hover:shadow-2xl transition-all">
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-400" />
-          <div className="absolute -right-8 -bottom-8 w-44 h-44 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-6 -top-6 w-32 h-32 bg-teal-500/15 rounded-full blur-2xl pointer-events-none" />
+        {/* Kartu 3: Saldo Akhir Saat Ini - Royal Indigo */}
+        <div className="bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-2xl p-4.5 sm:p-5 relative overflow-hidden shadow-md border border-indigo-700/80 ring-1 ring-indigo-500/30 group hover:shadow-lg transition-all">
           <div className="flex items-center justify-between mb-3 relative">
             <div>
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-400 block">
+              <span className="text-xs font-black uppercase tracking-wider text-indigo-200 block">
                 Saldo Bersih Kas
               </span>
-              <span className="text-[10.5px] text-slate-400 font-medium">
+              <span className="text-[10.5px] text-indigo-200/80 font-medium">
                 (Total Masuk − Total Keluar)
               </span>
             </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-emerald-300 shadow-inner">
-              <Wallet className="w-4.5 h-4.5 text-emerald-300" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600/50 text-indigo-100 border border-indigo-400/30 flex items-center justify-center shadow-xs">
+              <Wallet className="w-4.5 h-4.5 text-indigo-200" />
             </div>
           </div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white mb-1.5 tracking-tight relative">
@@ -1294,12 +1290,12 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
-                <th className="py-3.5 px-5 sm:px-6">Kategori Anggaran</th>
-                <th className="py-3.5 px-5 sm:px-6">Jenis Aliran</th>
-                <th className="py-3.5 px-5 sm:px-6 text-center">Frekuensi Transaksi</th>
-                <th className="py-3.5 px-5 sm:px-6 text-right">Total Nominal</th>
-                <th className="py-3.5 px-4 text-center w-28">Rincian</th>
+              <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
+                <th className="py-3 px-5 sm:px-6 text-white font-bold bg-slate-950">Kategori Anggaran</th>
+                <th className="py-3 px-5 sm:px-6 text-white font-bold bg-slate-950">Jenis Aliran</th>
+                <th className="py-3 px-5 sm:px-6 text-center text-white font-bold bg-slate-950">Frekuensi Transaksi</th>
+                <th className="py-3 px-5 sm:px-6 text-right text-white font-bold bg-slate-950">Total Nominal</th>
+                <th className="py-3 px-4 text-center w-28 text-white font-bold bg-slate-950">Rincian</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 text-xs">
@@ -1500,11 +1496,11 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-600 text-xs font-bold border-b border-slate-200">
-                  <th className="py-3 px-5 sm:px-6 w-40 whitespace-nowrap">Tanggal</th>
-                  <th className="py-3 px-5 sm:px-6 w-36 whitespace-nowrap">Jenis</th>
-                  <th className="py-3 px-5 sm:px-6 w-44 text-right whitespace-nowrap">Jumlah</th>
-                  <th className="py-3 px-5 sm:px-6">Keterangan Lengkap</th>
+                <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
+                  <th className="py-3 px-5 sm:px-6 w-40 whitespace-nowrap text-white font-bold bg-slate-950">Tanggal</th>
+                  <th className="py-3 px-5 sm:px-6 w-36 whitespace-nowrap text-white font-bold bg-slate-950">Jenis</th>
+                  <th className="py-3 px-5 sm:px-6 w-44 text-right whitespace-nowrap text-white font-bold bg-slate-950">Jumlah</th>
+                  <th className="py-3 px-5 sm:px-6 text-white font-bold bg-slate-950">Keterangan Lengkap</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-xs">

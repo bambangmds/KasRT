@@ -12,12 +12,15 @@ import {
   CheckCircle, 
   Home, 
   UserCheck, 
-  UserPlus
+  UserPlus,
+  FileText,
+  Printer
 } from 'lucide-react';
-import { getSupabase, syncWargaDeleteToPengguna } from '../lib/supabase';
+import { getSupabase, syncWargaDeleteToPengguna, fetchAllPengurusFromSupabase } from '../lib/supabase';
 import { SupabaseConnectionStatus } from '../types';
 import { TambahWargaModal } from './TambahWargaModal';
 import { useSekretariat } from '../context/SekretariatContext';
+import { exportDataWargaPDF } from '../lib/exportUtils';
 
 interface DataWargaSectionProps {
   connectionStatus?: SupabaseConnectionStatus;
@@ -30,7 +33,7 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
   onTriggerToast,
   onDataChanged
 }) => {
-  const { wilayahShort } = useSekretariat();
+  const { sekretariat, wilayahShort } = useSekretariat();
   
   // State Data Warga
   const [dataWarga, setDataWarga] = useState<any[]>([]);
@@ -161,44 +164,48 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* 1. Metric Cards Statistik Penduduk */}
+      {/* 1. Metric Cards Statistik Penduduk - Masing-Masing Warna Dasar Berbeda */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        {/* TOTAL WARGA - Royal Indigo */}
+        <div className="bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 p-4 sm:p-5 rounded-2xl border border-indigo-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <div className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Total Warga</div>
-            <div className="text-xl sm:text-2xl font-black text-slate-800 mt-0.5">{totalJiwa} <span className="text-xs font-bold text-blue-600">KK warga</span></div>
+            <div className="text-[10px] sm:text-xs font-bold text-indigo-200 uppercase tracking-wider">TOTAL WARGA</div>
+            <div className="text-xl sm:text-2xl font-black text-white mt-0.5">{totalJiwa} <span className="text-xs font-bold text-indigo-200">KK warga</span></div>
           </div>
-          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+          <div className="p-2.5 bg-indigo-600/50 text-indigo-100 border border-indigo-400/30 rounded-xl shadow-xs shrink-0">
             <Users className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        {/* WARGA TETAP - Emerald Green */}
+        <div className="bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 p-4 sm:p-5 rounded-2xl border border-emerald-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <div className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider">Warga Tetap</div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">{totalTetap} <span className="text-xs font-bold text-blue-600">KK warga</span></div>
+            <div className="text-[10px] sm:text-xs font-bold text-emerald-200 uppercase tracking-wider">WARGA TETAP</div>
+            <div className="text-xl sm:text-2xl font-black text-white mt-0.5">{totalTetap} <span className="text-xs font-bold text-emerald-200">KK warga</span></div>
           </div>
-          <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+          <div className="p-2.5 bg-emerald-600/50 text-emerald-100 border border-emerald-400/30 rounded-xl shadow-xs shrink-0">
             <Home className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        {/* KONTRAK / KOS - Sky Blue */}
+        <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-slate-900 p-4 sm:p-5 rounded-2xl border border-blue-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <div className="text-[10px] sm:text-xs font-bold text-blue-600 uppercase tracking-wider">Kontrak / Kos</div>
-            <div className="text-xl sm:text-2xl font-black text-blue-700 mt-0.5">{totalKontrak} <span className="text-xs font-bold text-blue-600">KK warga</span></div>
+            <div className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-wider">KONTRAK / KOS</div>
+            <div className="text-xl sm:text-2xl font-black text-white mt-0.5">{totalKontrak} <span className="text-xs font-bold text-blue-200">KK warga</span></div>
           </div>
-          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+          <div className="p-2.5 bg-blue-600/50 text-blue-100 border border-blue-400/30 rounded-xl shadow-xs shrink-0">
             <UserCheck className="w-5 h-5" />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        {/* TERHUBUNG NO. HP - Warm Amber / Copper */}
+        <div className="bg-gradient-to-br from-amber-950 via-amber-900 to-slate-900 p-4 sm:p-5 rounded-2xl border border-amber-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <div className="text-[10px] sm:text-xs font-bold text-amber-600 uppercase tracking-wider">Terhubung No. HP</div>
-            <div className="text-xl sm:text-2xl font-black text-amber-700 mt-0.5">{totalPunyaHp} <span className="text-xs font-normal text-amber-500">No. WA</span></div>
+            <div className="text-[10px] sm:text-xs font-bold text-amber-200 uppercase tracking-wider">TERHUBUNG NO. HP</div>
+            <div className="text-xl sm:text-2xl font-black text-white mt-0.5">{totalPunyaHp} <span className="text-xs font-bold text-amber-200">No. WA</span></div>
           </div>
-          <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+          <div className="p-2.5 bg-amber-600/50 text-amber-100 border border-amber-400/30 rounded-xl shadow-xs shrink-0">
             <Phone className="w-5 h-5" />
           </div>
         </div>
@@ -207,14 +214,15 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
       {/* 2. Search, Filter & Action Toolbar */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-1 w-full">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+          {/* Frame input pencarian dengan warna abu-abu tebal (bg-slate-800 border-slate-700) */}
+          <div className="relative flex-1 max-w-md bg-slate-800 border border-slate-700 p-1 rounded-xl shadow-xs">
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-300 pointer-events-none" />
             <input
               type="text"
               placeholder="Cari nama warga, NIK, No. KK, atau domisili..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+              className="block w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-slate-800 text-white placeholder-slate-300 font-medium rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none transition-all"
             />
           </div>
 
@@ -249,7 +257,26 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+          {/* Tombol Cetak / Download Laporan PDF Data Warga */}
+          <button
+            type="button"
+            onClick={async () => {
+              const penggunaList = await fetchAllPengurusFromSupabase();
+              await exportDataWargaPDF(filteredWarga, {
+                sekretariat,
+                pengguna: penggunaList,
+                filterLabel: statusFilter === 'All' ? 'Semua Data Warga' : `Filter: ${statusFilter}`,
+              });
+              onTriggerToast('Laporan PDF Data Warga berhasil dibuat & diunduh!', 'success', 'PDF Terunduh');
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-rose-600 via-rose-700 to-pink-700 hover:from-rose-700 hover:to-pink-800 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95"
+            title="Cetak & Unduh Laporan PDF Data Warga Resmi"
+          >
+            <FileText className="w-4 h-4 text-rose-100" />
+            <span>Laporan PDF Warga</span>
+          </button>
+
           <button
             type="button"
             onClick={loadDataWarga}
@@ -286,13 +313,13 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[750px]">
               <thead>
-                <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                  <th className="p-3.5 w-12 text-center">No</th>
-                  <th className="p-3.5">Nama Lengkap</th>
-                  <th className="p-3.5">NIK / No. KK</th>
-                  <th className="p-3.5">Alamat Domisili</th>
-                  <th className="p-3.5">Status & Kontak</th>
-                  <th className="p-3.5 text-center w-24">Aksi</th>
+                <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
+                  <th className="p-3.5 w-12 text-center text-white font-bold bg-slate-950">NO</th>
+                  <th className="p-3.5 text-white font-bold bg-slate-950">NAMA LENGKAP</th>
+                  <th className="p-3.5 text-white font-bold bg-slate-950">NIK / NO. KK</th>
+                  <th className="p-3.5 text-white font-bold bg-slate-950">ALAMAT DOMISILI</th>
+                  <th className="p-3.5 text-white font-bold bg-slate-950">STATUS & KONTAK</th>
+                  <th className="p-3.5 text-center w-24 text-white font-bold bg-slate-950">AKSI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">

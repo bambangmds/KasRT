@@ -158,56 +158,56 @@ export const KelolaDataView: React.FC<KelolaDataViewProps> = ({
       {/* 2. Kartu Ringkasan Isi Database kas_rt */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Transaksi */}
-        <div className="bg-gradient-to-br from-white via-white to-indigo-50/40 rounded-xl p-4 sm:p-5 border border-indigo-200/70 shadow-2xs flex items-center justify-between">
+        <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white rounded-xl p-4 sm:p-5 border border-indigo-500/30 shadow-md flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-indigo-200 uppercase tracking-wider block">
               Total Catatan Kas
             </span>
-            <span className="text-2xl font-black text-slate-900 mt-1 block">
+            <span className="text-2xl font-black text-white mt-1 block">
               {stats.totalCount.toLocaleString('id-ID')}
             </span>
-            <span className="text-[11px] text-slate-500 mt-0.5 block">
-              Baris mutasi di tabel <code className="font-mono text-indigo-700 font-bold">kas_rt</code>
+            <span className="text-[11px] text-indigo-200/80 mt-0.5 block">
+              Baris mutasi di tabel <code className="font-mono text-indigo-100 font-bold">kas_rt</code>
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-600/20 flex items-center justify-center shrink-0">
-            <Layers className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-md flex items-center justify-center shrink-0">
+            <Layers className="w-6 h-6 text-indigo-200" />
           </div>
         </div>
 
         {/* Total Kas Masuk */}
-        <div className="bg-gradient-to-br from-white via-white to-emerald-50/40 rounded-xl p-4 sm:p-5 border border-emerald-200/80 shadow-2xs flex items-center justify-between">
+        <div className="bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-900 text-white rounded-xl p-4 sm:p-5 border border-emerald-500/30 shadow-md flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-emerald-200 uppercase tracking-wider block">
               Total Kas Masuk
             </span>
-            <span className="text-xl sm:text-2xl font-black text-emerald-700 mt-1 block">
+            <span className="text-xl sm:text-2xl font-black text-white mt-1 block">
               Rp {stats.totalMasuk.toLocaleString('id-ID')}
             </span>
-            <span className="text-[11px] text-emerald-600/80 mt-0.5 block">
+            <span className="text-[11px] text-emerald-200/80 mt-0.5 block">
               Penerimaan iuran & bantuan warga
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 flex items-center justify-center shrink-0">
-            <ArrowDownLeft className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-md flex items-center justify-center shrink-0">
+            <ArrowDownLeft className="w-6 h-6 text-emerald-200" />
           </div>
         </div>
 
         {/* Total Kas Keluar */}
-        <div className="bg-gradient-to-br from-white via-white to-rose-50/40 rounded-xl p-4 sm:p-5 border border-rose-200/80 shadow-2xs flex items-center justify-between">
+        <div className="bg-gradient-to-br from-rose-600 via-pink-700 to-rose-900 text-white rounded-xl p-4 sm:p-5 border border-rose-500/30 shadow-md flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-rose-200 uppercase tracking-wider block">
               Total Kas Keluar
             </span>
-            <span className="text-xl sm:text-2xl font-black text-rose-700 mt-1 block">
+            <span className="text-xl sm:text-2xl font-black text-white mt-1 block">
               Rp {stats.totalKeluar.toLocaleString('id-ID')}
             </span>
-            <span className="text-[11px] text-rose-600/80 mt-0.5 block">
+            <span className="text-[11px] text-rose-200/80 mt-0.5 block">
               Pengeluaran & operasional RT
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-600 text-white shadow-md shadow-rose-600/20 flex items-center justify-center shrink-0">
-            <ArrowUpRight className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-md flex items-center justify-center shrink-0">
+            <ArrowUpRight className="w-6 h-6 text-rose-200" />
           </div>
         </div>
 

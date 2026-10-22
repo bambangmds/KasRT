@@ -555,14 +555,14 @@ CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
         <div className="space-y-4">
           {/* Controls toolbar */}
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <div className="relative w-full sm:max-w-xs bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-300" />
               <input
                 type="text"
                 value={searchAssetQuery}
                 onChange={(e) => setSearchAssetQuery(e.target.value)}
                 placeholder="Cari nama aset, lokasi, atau catatan..."
-                className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                className="w-full pl-9 pr-4 py-2 text-xs bg-slate-800 border-none rounded-lg text-white placeholder-slate-300 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
               />
             </div>
             
@@ -683,14 +683,14 @@ CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
         <div className="space-y-4">
           {/* Controls toolbar */}
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-xl border border-slate-200">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <div className="relative w-full sm:max-w-xs bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-300" />
               <input
                 type="text"
                 value={searchLoanQuery}
                 onChange={(e) => setSearchLoanQuery(e.target.value)}
                 placeholder="Cari peminjam, barang, keperluan..."
-                className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                className="w-full pl-9 pr-4 py-2 text-xs bg-slate-800 border-none rounded-lg text-white placeholder-slate-300 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
               />
             </div>
             
@@ -714,15 +714,15 @@ CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
             <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-2xs">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100 uppercase tracking-wider text-[10px]">
-                    <th className="p-3">Nama Barang</th>
-                    <th className="p-3">Peminjam Warga</th>
-                    <th className="p-3">Unit</th>
-                    <th className="p-3">Tanggal Pinjam</th>
-                    <th className="p-3">Tgl Pengembalian</th>
-                    <th className="p-3">Keperluan / Keterangan</th>
-                    <th className="p-3 text-center">Status</th>
-                    <th className="p-3 text-center">Aksi</th>
+                  <tr className="bg-slate-950 text-white font-bold border-b border-slate-800 uppercase tracking-wider text-[10px]">
+                    <th className="p-3 text-white font-bold bg-slate-950">Nama Barang</th>
+                    <th className="p-3 text-white font-bold bg-slate-950">Peminjam Warga</th>
+                    <th className="p-3 text-white font-bold bg-slate-950">Unit</th>
+                    <th className="p-3 text-white font-bold bg-slate-950">Tanggal Pinjam</th>
+                    <th className="p-3 text-white font-bold bg-slate-950">Tgl Pengembalian</th>
+                    <th className="p-3 text-white font-bold bg-slate-950">Keperluan / Keterangan</th>
+                    <th className="p-3 text-center text-white font-bold bg-slate-950">Status</th>
+                    <th className="p-3 text-center text-white font-bold bg-slate-950">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">

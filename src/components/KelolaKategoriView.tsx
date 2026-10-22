@@ -370,38 +370,38 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
           {/* Kartu Statistik Ringkas */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Total Kategori */}
-            <div className="bg-gradient-to-br from-white via-white to-slate-50 p-5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-700 shrink-0">
-                <Layers className="w-6 h-6 text-slate-600" />
+            <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white p-5 rounded-2xl shadow-md border border-indigo-500/30 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shrink-0">
+                <Layers className="w-6 h-6 text-indigo-200" />
               </div>
               <div>
-                <div className="text-xs font-medium text-slate-500">Total Pos Kategori</div>
-                <div className="text-2xl font-bold text-slate-800 mt-0.5">{totalCount}</div>
-                <div className="text-xs text-slate-400 mt-0.5">Tersimpan di database</div>
+                <div className="text-xs font-semibold text-indigo-200 uppercase tracking-wider">Total Pos Kategori</div>
+                <div className="text-2xl font-black text-white mt-0.5">{totalCount}</div>
+                <div className="text-xs text-indigo-200/80 mt-0.5">Tersimpan di database</div>
               </div>
             </div>
 
             {/* Kategori Masuk */}
-            <div className="bg-gradient-to-br from-white via-white to-emerald-50/40 p-5 rounded-2xl border border-emerald-200/80 shadow-2xs flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 flex items-center justify-center shrink-0">
-                <ArrowDownLeft className="w-6 h-6" />
+            <div className="bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-900 text-white p-5 rounded-2xl shadow-md border border-emerald-500/30 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shrink-0">
+                <ArrowDownLeft className="w-6 h-6 text-emerald-200" />
               </div>
               <div>
-                <div className="text-xs font-bold text-emerald-700">Kategori Kas Masuk</div>
-                <div className="text-2xl font-bold text-emerald-800 mt-0.5">{masukCount}</div>
-                <div className="text-xs text-emerald-600/80 mt-0.5">Pos iuran & donasi warga</div>
+                <div className="text-xs font-semibold text-emerald-200 uppercase tracking-wider">Kategori Kas Masuk</div>
+                <div className="text-2xl font-black text-white mt-0.5">{masukCount}</div>
+                <div className="text-xs text-emerald-200/80 mt-0.5">Pos iuran & donasi warga</div>
               </div>
             </div>
 
             {/* Kategori Keluar */}
-            <div className="bg-gradient-to-br from-white via-white to-rose-50/40 p-5 rounded-2xl border border-rose-200/80 shadow-2xs flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-600 text-white shadow-md shadow-rose-600/20 flex items-center justify-center shrink-0">
-                <ArrowUpRight className="w-6 h-6" />
+            <div className="bg-gradient-to-br from-rose-600 via-pink-700 to-rose-900 text-white p-5 rounded-2xl shadow-md border border-rose-500/30 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shrink-0">
+                <ArrowUpRight className="w-6 h-6 text-rose-200" />
               </div>
               <div>
-                <div className="text-xs font-bold text-rose-700">Kategori Kas Keluar</div>
-                <div className="text-2xl font-bold text-rose-800 mt-0.5">{keluarCount}</div>
-                <div className="text-xs text-rose-600/80 mt-0.5">Pos belanja & operasional</div>
+                <div className="text-xs font-semibold text-rose-200 uppercase tracking-wider">Kategori Kas Keluar</div>
+                <div className="text-2xl font-black text-white mt-0.5">{keluarCount}</div>
+                <div className="text-xs text-rose-200/80 mt-0.5">Pos belanja & operasional</div>
               </div>
             </div>
           </div>
@@ -448,20 +448,20 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
         </div>
 
         {/* Search Bar */}
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="relative flex-1 sm:max-w-xs bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
+          <Search className="w-4 h-4 text-slate-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari nama pos kategori..."
-            className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-slate-400"
+            className="w-full pl-9 pr-8 py-2 bg-slate-800 border-none rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all placeholder:text-slate-300 font-medium"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -474,14 +474,14 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4 sm:px-6">No</th>
-                <th className="py-3.5 px-4 sm:px-6">Pos Kategori</th>
-                <th className="py-3.5 px-4 sm:px-6">Nominal Acuan</th>
-                <th className="py-3.5 px-4 sm:px-6">Jenis Kas</th>
-                <th className="py-3.5 px-4 sm:px-6">Deskripsi / Peruntukan</th>
-                <th className="py-3.5 px-4 sm:px-6 text-center">Pemakaian Transaksi</th>
-                <th className="py-3.5 px-4 sm:px-6 text-right">Aksi</th>
+              <tr className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold text-white uppercase tracking-wider">
+                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">No</th>
+                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Pos Kategori</th>
+                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Nominal Acuan</th>
+                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Jenis Kas</th>
+                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Deskripsi / Peruntukan</th>
+                <th className="py-3.5 px-4 sm:px-6 text-center text-white font-bold bg-slate-950">Pemakaian Transaksi</th>
+                <th className="py-3.5 px-4 sm:px-6 text-right text-white font-bold bg-slate-950">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
