@@ -501,49 +501,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        <div
-          onClick={onOpenSupabaseModal}
-          className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all duration-200 text-left shadow-md group cursor-pointer hover:border-slate-500 hover:scale-[1.02] active:scale-98 ${
-            isConnected
-              ? 'bg-gradient-to-r from-slate-800/90 to-emerald-950/40 border-emerald-500/40 text-white'
-              : isConnecting
-              ? 'bg-gradient-to-r from-slate-800/90 to-sky-950/40 border-sky-500/40 text-white'
-              : 'bg-slate-800/90 border-slate-700/80 text-slate-200'
-          }`}
-          title="Klik untuk membuka Konfigurasi Database Supabase & URL Cron-Job"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="relative flex items-center justify-center">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  isConnected
-                    ? 'bg-emerald-400 shadow-sm shadow-emerald-400'
-                    : isConnecting
-                    ? 'bg-sky-400'
-                    : 'bg-amber-400'
-                }`}
-              />
-              {isConnected && (
-                <span className="absolute w-3.5 h-3.5 rounded-full bg-emerald-500/40 animate-ping" />
-              )}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[11px] font-bold text-white leading-tight">
-                {isConnected
-                  ? 'Supabase: kas_rt (Live)'
-                  : isConnecting
-                  ? 'Menghubungkan...'
-                  : 'Aktifkan Supabase'}
-              </span>
-              <span className="text-[10px] text-slate-400 leading-tight">
-                {isConnected ? 'Database tersambung' : 'Klik konfigurasi'}
-              </span>
-            </div>
-          </div>
-          <div className="w-5 h-5 rounded-md bg-slate-700/60 flex items-center justify-center transition-colors">
-            <Database className="w-3 h-3 text-slate-300" />
-          </div>
-        </div>
+
       </div>
     </div>
   );

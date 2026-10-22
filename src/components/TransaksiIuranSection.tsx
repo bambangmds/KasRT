@@ -564,10 +564,10 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
                   setSelectedWargaIds([]);
                   setSearchWargaTerm('');
                 }}
-                className={`flex-1 py-2 rounded-lg text-center transition-all cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-lg text-center transition-all cursor-pointer ${
                   paymentMode === 'tunggal'
-                    ? 'bg-white text-indigo-700 shadow-xs'
-                    : 'hover:text-slate-800 hover:bg-slate-50/50'
+                    ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/30 ring-1 ring-orange-400/50 font-black'
+                    : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50/60 font-bold'
                 }`}
               >
                 1. Bayar Tunggal (Perorangan)
@@ -579,10 +579,10 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
                   setSelectedWargaId('');
                   setSearchWargaTerm('');
                 }}
-                className={`flex-1 py-2 rounded-lg text-center transition-all cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-lg text-center transition-all cursor-pointer ${
                   paymentMode === 'serempak'
-                    ? 'bg-white text-indigo-700 shadow-xs'
-                    : 'hover:text-slate-800 hover:bg-slate-50/50'
+                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-md shadow-blue-600/30 ring-1 ring-blue-400/50 font-black'
+                    : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50/60 font-bold'
                 }`}
               >
                 2. Bayar Serempak (Banyak Warga)
@@ -905,7 +905,11 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
                 connectionStatus !== 'connected' || 
                 (paymentMode === 'tunggal' ? !selectedWargaId : selectedWargaIds.length === 0)
               }
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-100 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className={`w-full py-3 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
+                paymentMode === 'tunggal'
+                  ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/20'
+                  : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-blue-600/20'
+              }`}
             >
               {isSavingPayment ? (
                 <>
@@ -915,7 +919,7 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>Catat & Simpan Setoran Iuran</span>
+                  <span>Catat & Simpan Setoran Iuran ({paymentMode === 'tunggal' ? 'Tunggal' : 'Serempak'})</span>
                 </>
               )}
             </button>

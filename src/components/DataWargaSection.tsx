@@ -165,8 +165,8 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <div className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Total Warga</div>
-            <div className="text-xl sm:text-2xl font-black text-slate-800 mt-0.5">{totalJiwa} <span className="text-xs font-normal text-slate-400">Jiwa</span></div>
+            <div className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Total Warga</div>
+            <div className="text-xl sm:text-2xl font-black text-slate-800 mt-0.5">{totalJiwa} <span className="text-xs font-bold text-blue-600">KK warga</span></div>
           </div>
           <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
             <Users className="w-5 h-5" />
@@ -176,7 +176,7 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
             <div className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider">Warga Tetap</div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">{totalTetap} <span className="text-xs font-normal text-emerald-500">Jiwa</span></div>
+            <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">{totalTetap} <span className="text-xs font-bold text-blue-600">KK warga</span></div>
           </div>
           <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
             <Home className="w-5 h-5" />
@@ -186,7 +186,7 @@ export const DataWargaSection: React.FC<DataWargaSectionProps> = ({
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
             <div className="text-[10px] sm:text-xs font-bold text-blue-600 uppercase tracking-wider">Kontrak / Kos</div>
-            <div className="text-xl sm:text-2xl font-black text-blue-700 mt-0.5">{totalKontrak} <span className="text-xs font-normal text-blue-500">Jiwa</span></div>
+            <div className="text-xl sm:text-2xl font-black text-blue-700 mt-0.5">{totalKontrak} <span className="text-xs font-bold text-blue-600">KK warga</span></div>
           </div>
           <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
             <UserCheck className="w-5 h-5" />
