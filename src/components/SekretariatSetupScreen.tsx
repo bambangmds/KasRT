@@ -28,12 +28,14 @@ interface SekretariatSetupScreenProps {
   onInitialize: (payload: InitialSetupPayload) => Promise<{ success: boolean; error: string | null; user?: UserProfile }>;
   isLoading: boolean;
   error: string | null;
+  onOpenSupabaseConfig?: () => void;
 }
 
 export const SekretariatSetupScreen: React.FC<SekretariatSetupScreenProps> = ({
   onInitialize,
   isLoading,
   error: apiError,
+  onOpenSupabaseConfig,
 }) => {
   // Wizard Step: 1 (Lokasi Wilayah) | 2 (Data Pengurus Inti & Akun)
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
@@ -235,16 +237,30 @@ export const SekretariatSetupScreen: React.FC<SekretariatSetupScreenProps> = ({
               </div>
             </div>
 
-            {/* Stepper Badge */}
-            <div className="flex items-center gap-2 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700/80 shrink-0 self-start sm:self-auto">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                currentStep === 1 ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'
-              }`}>
-                {currentStep === 1 ? '1' : <CheckCircle2 className="w-3.5 h-3.5" />}
+            <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+              {onOpenSupabaseConfig && (
+                <button
+                  type="button"
+                  onClick={onOpenSupabaseConfig}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 hover:text-white rounded-full text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                  title="Cek atau sesuaikan konfigurasi database Supabase"
+                >
+                  <Database className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Pengaturan Supabase</span>
+                </button>
+              )}
+
+              {/* Stepper Badge */}
+              <div className="flex items-center gap-2 bg-slate-800/80 px-3.5 py-1.5 rounded-full border border-slate-700/80 shrink-0">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  currentStep === 1 ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'
+                }`}>
+                  {currentStep === 1 ? '1' : <CheckCircle2 className="w-3.5 h-3.5" />}
+                </div>
+                <span className="text-xs font-semibold text-slate-300">
+                  Langkah {currentStep} dari 2
+                </span>
               </div>
-              <span className="text-xs font-semibold text-slate-300">
-                Langkah {currentStep} dari 2
-              </span>
             </div>
           </div>
 

@@ -13,6 +13,7 @@ import {
   InventarisItem,
   PeminjamanItem
 } from '../types';
+import { INITIAL_CATEGORIES } from '../data/initialData';
 
 // Storage keys for user-configured credentials via UI
 const STORAGE_KEY_URL = 'kas_rt_supabase_url';
@@ -368,6 +369,11 @@ export const setSupabaseCredentials = (url: string, anonKey: string): void => {
   localStorage.setItem(STORAGE_KEY_URL, cleanedUrl);
   localStorage.setItem(STORAGE_KEY_ANON, cleanedAnon);
   clientInstance = null; // force re-instantiation
+
+  // Hapus cache lokal sekretariat lama agar tabel kosong di database Supabase yang baru tidak tertutupi
+  try {
+    localStorage.removeItem(STORAGE_KEY_SEKRETARIAT);
+  } catch {}
 };
 
 // Reset custom credentials (reverts to env variables or demo)
@@ -765,87 +771,47 @@ export const testSupabaseConnection = async (
   }
 };
 
-// SQL Schema for user to run in Supabase SQL Editor
+// Master SQL Schema for user to run in Supabase SQL Editor (8 Tabel Lengkap & Kebijakan RLS)
 export const SUPABASE_SQL_SCHEMA = `-- =========================================================================
--- SKEMA DATABASE KAS RT (Tabel Sekretariat, Kas RT, Kategori, Pengurus & Data Warga)
--- Jalankan seluruh query ini di Supabase SQL Editor:
+-- MASTER SKEMA LENGKAP SUPABASE: KAS RT DIGITAL
+-- Mencakup Seluruh Tabel:
+-- 1. sekretariat (Profil & Wilayah RT)
+-- 2. data_warga (Kependudukan & Warga RT)
+-- 3. pengguna (Akun Login & Pengurus)
+-- 4. inventaris_rt (Aset & Barang RT)
+-- 5. peminjaman_aset_rt (Log Peminjaman Aset)
+-- 6. kategori (Master Pos Kas Masuk & Keluar)
+-- 7. kas_rt (Buku Transaksi Kas & Keuangan)
+-- 8. darurat_rt (Sistem Siren & Tombol Darurat SOS)
 -- =========================================================================
 
--- 1. Tabel Master Kategori Kas RT (Pos Penerimaan & Pengeluaran)
-CREATE TABLE IF NOT EXISTS kategori (
+-- Aktifkan ekstensi UUID jika belum aktif
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- 1. TABEL SEKRETARIAT (Profil Wilayah RT)
+CREATE TABLE IF NOT EXISTS sekretariat (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nama TEXT NOT NULL,
-  jenis TEXT NOT NULL CHECK (jenis IN ('Masuk', 'Keluar')),
-  deskripsi TEXT,
-  wajib BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  UNIQUE(nama, jenis)
+  rt VARCHAR(10) NOT NULL DEFAULT '002',
+  rw VARCHAR(10) NOT NULL DEFAULT '09',
+  kelurahan VARCHAR(100) NOT NULL DEFAULT 'Pondok Rajeg',
+  kecamatan VARCHAR(100) NOT NULL DEFAULT 'Cibinong',
+  alamat TEXT NOT NULL DEFAULT 'Jl. Pondok Rajeg Raya, RT.002 RW.09, Kel. Pondok Rajeg, Kec. Cibinong, Kab. Bogor, Jawa Barat',
+  kota_kabupaten VARCHAR(100) DEFAULT 'Kabupaten Bogor',
+  provinsi VARCHAR(100) DEFAULT 'Jawa Barat',
+  kode_pos VARCHAR(10) DEFAULT '16914',
+  telepon VARCHAR(25),
+  email VARCHAR(100),
+  nama_ketua_rt VARCHAR(100),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Pastikan kolom wajib tersedia jika tabel kategori sudah dibuat sebelumnya
-ALTER TABLE kategori ADD COLUMN IF NOT EXISTS wajib BOOLEAN DEFAULT false;
+CREATE OR REPLACE VIEW "Sekretariat" AS SELECT * FROM sekretariat;
+ALTER TABLE sekretariat ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Sekretariat" ON sekretariat;
+CREATE POLICY "Akses Publik Sekretariat" ON sekretariat FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE kategori ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Akses Publik Kategori" ON kategori;
-CREATE POLICY "Akses Publik Kategori" 
-  ON kategori 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
-
--- 2. Tabel Buku Transaksi Kas RT
-CREATE TABLE IF NOT EXISTS kas_rt (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tanggal DATE NOT NULL,
-  jenis TEXT NOT NULL CHECK (jenis IN ('Masuk', 'Keluar')),
-  kategori TEXT NOT NULL,
-  jumlah NUMERIC NOT NULL,
-  keterangan TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
-);
-
-ALTER TABLE kas_rt ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Akses Publik Kas RT" ON kas_rt;
-CREATE POLICY "Akses Publik Kas RT" 
-  ON kas_rt 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
-
--- 3. Tabel Data Pengguna / Pengurus & Warga RT (Hak Akses Admin & User)
--- Catatan: Jika sebelumnya tabel Anda bernama 'pengurus', Anda dapat menjalankan:
--- ALTER TABLE IF EXISTS pengurus RENAME TO pengguna;
-CREATE TABLE IF NOT EXISTS pengguna (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nama TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  jabatan TEXT NOT NULL,
-  level_akses TEXT NOT NULL DEFAULT 'User' CHECK (level_akses IN ('Admin', 'User')),
-  no_hp TEXT,
-  no_kk VARCHAR(16),
-  warga_id UUID,
-  nik VARCHAR(16),
-  alamat_domisili TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
-);
-
--- Pastikan kolom relasi data warga ada di tabel pengguna jika tabel sudah dibuat sebelumnya
-ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS no_kk VARCHAR(16);
-ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS warga_id UUID;
-ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS nik VARCHAR(16);
-ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS alamat_domisili TEXT;
-ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS no_hp TEXT;
-
-ALTER TABLE pengguna ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Akses Publik Pengguna" ON pengguna;
-CREATE POLICY "Akses Publik Pengguna" 
-  ON pengguna 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
-
--- 4. Tabel Data Kependudukan & Warga RT (Data Warga)
+-- 2. TABEL DATA WARGA (Kependudukan)
 CREATE TABLE IF NOT EXISTS data_warga (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   no_kk VARCHAR(16) NOT NULL,
@@ -871,79 +837,56 @@ CREATE INDEX IF NOT EXISTS idx_data_warga_nama ON data_warga (nama_lengkap);
 
 ALTER TABLE data_warga ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Akses Publik Data Warga" ON data_warga;
-CREATE POLICY "Akses Publik Data Warga" 
-  ON data_warga 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
+CREATE POLICY "Akses Publik Data Warga" ON data_warga FOR ALL USING (true) WITH CHECK (true);
 
--- 5. Hubungkan tabel kas_rt dengan data_warga menggunakan warga_id
-ALTER TABLE kas_rt ADD COLUMN IF NOT EXISTS warga_id UUID REFERENCES data_warga(id) ON DELETE SET NULL;
-
--- 6. Tabel Data Wilayah & Sekretariat RT (5 Kolom: RT, RW, Kelurahan, Kecamatan, Alamat)
-CREATE TABLE IF NOT EXISTS sekretariat (
+-- 3. TABEL PENGGUNA (Akun Login & Pengurus)
+CREATE TABLE IF NOT EXISTS pengguna (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  rt VARCHAR(10) NOT NULL,
-  rw VARCHAR(10) NOT NULL,
-  kelurahan VARCHAR(100) NOT NULL,
-  kecamatan VARCHAR(100) NOT NULL,
-  alamat TEXT NOT NULL
-);
-
--- View Alias "Sekretariat" (Mendukung query dengan huruf kapital "Sekretariat")
-CREATE OR REPLACE VIEW "Sekretariat" AS SELECT * FROM sekretariat;
-
-ALTER TABLE sekretariat ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Akses Publik Sekretariat" ON sekretariat;
-CREATE POLICY "Akses Publik Sekretariat" 
-  ON sekretariat 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
-
--- 7. Tabel Peringatan Darurat / Siren SOS RT.002 RW.09
-CREATE TABLE IF NOT EXISTS darurat_rt (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  id_warga UUID NOT NULL,
-  nama_warga TEXT NOT NULL,
-  alamat TEXT NOT NULL,
+  nama TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  jabatan TEXT NOT NULL,
+  level_akses TEXT NOT NULL DEFAULT 'User' CHECK (level_akses IN ('Admin', 'User')),
   no_hp TEXT,
-  tipe_darurat TEXT NOT NULL, -- 'Medis/Kesehatan', 'Keamanan/Maling', 'Kebakaran', 'Bencana Alam', 'Lainnya'
-  status TEXT NOT NULL DEFAULT 'Aktif' CHECK (status IN ('Aktif', 'Selesai')),
-  keterangan TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  no_kk VARCHAR(16),
+  warga_id UUID,
+  nik VARCHAR(16),
+  alamat_domisili TEXT,
+  foto_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-ALTER TABLE darurat_rt ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Akses Publik Darurat RT" ON darurat_rt;
-CREATE POLICY "Akses Publik Darurat RT" 
-  ON darurat_rt 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS no_kk VARCHAR(16);
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS warga_id UUID;
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS nik VARCHAR(16);
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS alamat_domisili TEXT;
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS no_hp TEXT;
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS foto_url TEXT;
 
--- 8. Tabel Inventaris & Aset RT
+CREATE OR REPLACE VIEW "Pengguna" AS SELECT * FROM pengguna;
+ALTER TABLE pengguna ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Pengguna" ON pengguna;
+CREATE POLICY "Akses Publik Pengguna" ON pengguna FOR ALL USING (true) WITH CHECK (true);
+
+-- 4. TABEL INVENTARIS RT (Aset & Barang)
 CREATE TABLE IF NOT EXISTS inventaris_rt (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nama_barang TEXT NOT NULL,
   jumlah_total INTEGER NOT NULL DEFAULT 1,
   jumlah_baik INTEGER NOT NULL DEFAULT 1,
   jumlah_rusak INTEGER NOT NULL DEFAULT 0,
-  kondisi TEXT,
+  kondisi TEXT DEFAULT 'Baik',
   lokasi_penyimpanan TEXT,
   catatan TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_inventaris_nama ON inventaris_rt (nama_barang);
 ALTER TABLE inventaris_rt ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Akses Publik Inventaris RT" ON inventaris_rt;
-CREATE POLICY "Akses Publik Inventaris RT" 
-  ON inventaris_rt 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
+CREATE POLICY "Akses Publik Inventaris RT" ON inventaris_rt FOR ALL USING (true) WITH CHECK (true);
 
--- 9. Tabel Log Peminjaman Aset RT
+-- 5. TABEL PEMINJAMAN ASET RT
 CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_barang UUID NOT NULL REFERENCES inventaris_rt(id) ON DELETE CASCADE,
@@ -952,19 +895,451 @@ CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
   tanggal_kembali DATE,
   jumlah_pinjam INTEGER NOT NULL DEFAULT 1,
   keperluan TEXT,
-  status TEXT NOT NULL CHECK (status IN ('Dipinjam', 'Kembali')),
+  status TEXT NOT NULL DEFAULT 'Dipinjam' CHECK (status IN ('Dipinjam', 'Kembali')),
   catatan TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 ALTER TABLE peminjaman_aset_rt ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt;
-CREATE POLICY "Akses Publik Peminjaman Aset RT" 
-  ON peminjaman_aset_rt 
-  FOR ALL 
-  USING (true) 
-  WITH CHECK (true);
+CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL USING (true) WITH CHECK (true);
+
+-- 6. TABEL MASTER KATEGORI KAS
+CREATE TABLE IF NOT EXISTS kategori (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nama TEXT NOT NULL,
+  jenis TEXT NOT NULL CHECK (jenis IN ('Masuk', 'Keluar')),
+  deskripsi TEXT,
+  wajib BOOLEAN DEFAULT false,
+  nominal NUMERIC DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(nama, jenis)
+);
+
+ALTER TABLE kategori ADD COLUMN IF NOT EXISTS wajib BOOLEAN DEFAULT false;
+ALTER TABLE kategori ADD COLUMN IF NOT EXISTS nominal NUMERIC DEFAULT 0;
+
+ALTER TABLE kategori ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Kategori" ON kategori;
+CREATE POLICY "Akses Publik Kategori" ON kategori FOR ALL USING (true) WITH CHECK (true);
+
+-- 7. TABEL BUKU TRANSAKSI KAS RT
+CREATE TABLE IF NOT EXISTS kas_rt (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tanggal DATE NOT NULL,
+  jenis TEXT NOT NULL CHECK (jenis IN ('Masuk', 'Keluar')),
+  kategori TEXT NOT NULL,
+  jumlah NUMERIC NOT NULL,
+  keterangan TEXT NOT NULL,
+  warga_id UUID REFERENCES data_warga(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_kas_rt_tanggal ON kas_rt (tanggal);
+CREATE INDEX IF NOT EXISTS idx_kas_rt_jenis ON kas_rt (jenis);
+CREATE INDEX IF NOT EXISTS idx_kas_rt_kategori ON kas_rt (kategori);
+
+ALTER TABLE kas_rt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Kas RT" ON kas_rt;
+CREATE POLICY "Akses Publik Kas RT" ON kas_rt FOR ALL USING (true) WITH CHECK (true);
+
+-- 8. TABEL PERINGATAN DARURAT RT (SOS SIREN)
+CREATE TABLE IF NOT EXISTS darurat_rt (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id_warga UUID NOT NULL,
+  nama_warga TEXT NOT NULL,
+  alamat TEXT NOT NULL,
+  no_hp TEXT,
+  tipe_darurat TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Aktif' CHECK (status IN ('Aktif', 'Selesai')),
+  keterangan TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE darurat_rt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Darurat RT" ON darurat_rt;
+CREATE POLICY "Akses Publik Darurat RT" ON darurat_rt FOR ALL USING (true) WITH CHECK (true);
+
+-- DATA AWAL KATEGORI STANDAR
+INSERT INTO kategori (nama, jenis, deskripsi, wajib, nominal)
+VALUES
+  ('Iuran Warga Bulanan', 'Masuk', 'Iuran rutin bulanan warga RT untuk operasional lingkungan', true, 25000),
+  ('Iuran Keamanan / Satpam', 'Masuk', 'Iuran khusus pos ronda dan honor petugas keamanan', true, 20000),
+  ('Iuran Kebersihan & Sampah', 'Masuk', 'Iuran pengelolaan kebersihan lingkungan dan pengangkutan sampah', true, 15000),
+  ('Donasi & Sumbangan Sukarela', 'Masuk', 'Sumbangan sukarela donatur atau warga untuk kegiatan RT', false, 0),
+  ('Dana Sosial Warga', 'Masuk', 'Kas sosial untuk santunan lelayu, duka cita, dan bantuan sakit', false, 0),
+  ('Iuran Perbaikan Jalan', 'Masuk', 'Iuran swadaya pengaspalan / perbaikan paving jalan warga', false, 0),
+  ('Honor Petugas Keamanan', 'Keluar', 'Gaji / honor bulanan petugas pos satpam RT', false, 0),
+  ('Honor Petugas Kebersihan', 'Keluar', 'Honor petugas pengangkut sampah dan kebersihan drainase', false, 0),
+  ('Biaya Listrik Pos & PJU', 'Keluar', 'Pembayaran token listrik pos ronda dan lampu penerangan jalan umum', false, 0),
+  ('Pemeliharaan Sarana & Prasarana', 'Keluar', 'Perbaikan fasilitas umum, taman, pos, dan drainase lingkungan', false, 0),
+  ('Kegiatan Warga & HUT RI', 'Keluar', 'Biaya penyelenggaraan acara 17 Agustus, kerja bakti, dan senam bersama', false, 0),
+  ('Santunan Sosial & Duka', 'Keluar', 'Penyaluran santunan warga duka cita, melahirkan, atau sakit', false, 0),
+  ('Konsumsi Rapat & Kerja Bakti', 'Keluar', 'Konsumsi rapat rutin bulanan warga dan agenda kerja bakti bersama', false, 0),
+  ('Biaya keRTan', 'Keluar', 'Operasional administrasi sekretariat RT, ATK, cetak surat, dan perlengkapan', false, 0)
+ON CONFLICT (nama, jenis) DO NOTHING;
+
+-- VERIFIKASI STATUS TABEL
+SELECT 'sekretariat' AS tabel, count(*) AS total_baris FROM sekretariat
+UNION ALL SELECT 'pengguna', count(*) FROM pengguna
+UNION ALL SELECT 'data_warga', count(*) FROM data_warga
+UNION ALL SELECT 'inventaris_rt', count(*) FROM inventaris_rt
+UNION ALL SELECT 'peminjaman_aset_rt', count(*) FROM peminjaman_aset_rt
+UNION ALL SELECT 'kategori', count(*) FROM kategori
+UNION ALL SELECT 'kas_rt', count(*) FROM kas_rt
+UNION ALL SELECT 'darurat_rt', count(*) FROM darurat_rt;
 `;
+
+/* =========================================================================
+   DIAGNOSTIK TABEL SUPABASE & SINKRONISASI DATA LOKAL KE DATABASE
+   ========================================================================= */
+
+export interface TableStatusInfo {
+  name: string;
+  label: string;
+  status: 'ready' | 'missing' | 'rls_error' | 'error' | 'unconfigured';
+  rowCount: number;
+  errorMessage?: string;
+}
+
+/**
+ * Memeriksa status keberadaan dan jumlah baris masing-masing tabel di Supabase secara live
+ */
+export const checkSupabaseTablesStatus = async (): Promise<{
+  isConfigured: boolean;
+  tables: TableStatusInfo[];
+}> => {
+  const client = getSupabase();
+  const targetTables = [
+    { name: 'sekretariat', label: 'Profil Wilayah (sekretariat)' },
+    { name: 'pengguna', label: 'Akun Pengguna (pengguna)' },
+    { name: 'data_warga', label: 'Kependudukan (data_warga)' },
+    { name: 'inventaris_rt', label: 'Aset RT (inventaris_rt)' },
+    { name: 'peminjaman_aset_rt', label: 'Log Peminjaman (peminjaman_aset_rt)' },
+    { name: 'kategori', label: 'Master Kategori (kategori)' },
+    { name: 'kas_rt', label: 'Transaksi Kas (kas_rt)' },
+    { name: 'darurat_rt', label: 'Siren SOS (darurat_rt)' },
+  ];
+
+  if (!client) {
+    return {
+      isConfigured: false,
+      tables: targetTables.map((t) => ({
+        name: t.name,
+        label: t.label,
+        status: 'unconfigured',
+        rowCount: 0,
+        errorMessage: 'Supabase belum dikonfigurasi.',
+      })),
+    };
+  }
+
+  const results: TableStatusInfo[] = [];
+
+  for (const t of targetTables) {
+    try {
+      const { count, error } = await client
+        .from(t.name)
+        .select('*', { count: 'exact', head: true });
+
+      if (error) {
+        if (error.code === '42P01' || error.message?.toLowerCase().includes('does not exist')) {
+          results.push({
+            name: t.name,
+            label: t.label,
+            status: 'missing',
+            rowCount: 0,
+            errorMessage: `Tabel '${t.name}' belum dibuat di Supabase (Error 42P01).`,
+          });
+        } else if (error.code === '42501' || error.message?.toLowerCase().includes('row-level security')) {
+          results.push({
+            name: t.name,
+            label: t.label,
+            status: 'rls_error',
+            rowCount: 0,
+            errorMessage: `Izin akses ditolak RLS (Error 42501). Kebijakan publik belum aktif.`,
+          });
+        } else {
+          results.push({
+            name: t.name,
+            label: t.label,
+            status: 'error',
+            rowCount: 0,
+            errorMessage: error.message,
+          });
+        }
+      } else {
+        results.push({
+          name: t.name,
+          label: t.label,
+          status: 'ready',
+          rowCount: count ?? 0,
+        });
+      }
+    } catch (e: any) {
+      results.push({
+        name: t.name,
+        label: t.label,
+        status: 'error',
+        rowCount: 0,
+        errorMessage: e.message || 'Gagal memeriksa tabel',
+      });
+    }
+  }
+
+  return { isConfigured: true, tables: results };
+};
+
+export interface LocalDataSummary {
+  sekretariat: boolean;
+  registeredUsersCount: number;
+  dataWargaCount: number;
+  inventarisCount: number;
+  peminjamanCount: number;
+  transactionsCount: number;
+  categoriesCount: number;
+}
+
+/**
+ * Menghitung rekapitulasi data yang saat ini tersimpan di memori browser lokal
+ */
+export const getLocalDataSummary = (): LocalDataSummary => {
+  let hasSek = false;
+  try {
+    const rawSek = localStorage.getItem('kas_rt_sekretariat');
+    if (rawSek) {
+      const parsed = JSON.parse(rawSek);
+      if (parsed && (parsed.rt || parsed.kelurahan || parsed.alamat)) {
+        hasSek = true;
+      }
+    }
+  } catch {}
+
+  const localUsers = getLocalRegisteredUsers();
+  const realUsers = localUsers.filter((u) => !u.profile.isDemo);
+  const localWarga = getLocalWarga();
+  const localInv = getLocalInventaris();
+  const localLoans = getLocalPeminjaman();
+  let localTx: any[] = [];
+  try {
+    const rawTx = localStorage.getItem('kas_rt_transactions');
+    if (rawTx) localTx = JSON.parse(rawTx);
+  } catch {}
+  let localCats: any[] = [];
+  try {
+    const rawCat = localStorage.getItem('kas_rt_categories');
+    if (rawCat) localCats = JSON.parse(rawCat);
+  } catch {}
+
+  return {
+    sekretariat: hasSek,
+    registeredUsersCount: realUsers.length > 0 ? realUsers.length : localUsers.length,
+    dataWargaCount: localWarga.length,
+    inventarisCount: localInv.length,
+    peminjamanCount: localLoans.length,
+    transactionsCount: localTx.length,
+    categoriesCount: localCats.length,
+  };
+};
+
+/**
+ * Mengunggah dan menyinkronkan seluruh data yang tersimpan di memori lokal browser
+ * (Akun Pengguna baru, Profil Wilayah Sekretariat, Data Warga, dan Data Inventaris)
+ * langsung ke tabel Supabase yang bersangkutan.
+ */
+export const syncAllLocalDataToSupabase = async (): Promise<{
+  success: boolean;
+  uploaded: {
+    sekretariat: boolean;
+    pengguna: number;
+    dataWarga: number;
+    inventaris: number;
+    peminjaman: number;
+    kas: number;
+    kategori: number;
+  };
+  errors: string[];
+}> => {
+  const client = getSupabase();
+  if (!client) {
+    return {
+      success: false,
+      uploaded: { sekretariat: false, pengguna: 0, dataWarga: 0, inventaris: 0, peminjaman: 0, kas: 0, kategori: 0 },
+      errors: ['Koneksi Supabase belum aktif atau URL & Anon Key belum tersimpan.'],
+    };
+  }
+
+  const uploaded = {
+    sekretariat: false,
+    pengguna: 0,
+    dataWarga: 0,
+    inventaris: 0,
+    peminjaman: 0,
+    kas: 0,
+    kategori: 0,
+  };
+  const errors: string[] = [];
+
+  // 1. Sinkronkan Data Wilayah Sekretariat
+  try {
+    const rawSek = localStorage.getItem('kas_rt_sekretariat');
+    if (rawSek) {
+      const parsedSek = JSON.parse(rawSek);
+      const res = await saveSekretariatToSupabase(parsedSek);
+      if (res.success) {
+        uploaded.sekretariat = true;
+      } else if (res.error) {
+        errors.push(`Sekretariat: ${res.error}`);
+      }
+    }
+  } catch (err: any) {
+    errors.push(`Sekretariat error: ${err.message}`);
+  }
+
+  // 2. Sinkronkan Data Warga
+  try {
+    const localWarga = getLocalWarga();
+    if (localWarga.length > 0) {
+      const res = await restoreDataWargaToSupabase(localWarga);
+      if (res.success) {
+        uploaded.dataWarga = res.count;
+      } else if (res.error) {
+        errors.push(`Data Warga: ${res.error}`);
+      }
+    }
+  } catch (err: any) {
+    errors.push(`Data Warga error: ${err.message}`);
+  }
+
+  // 3. Sinkronkan Data Pengguna
+  try {
+    const localUsers = getLocalRegisteredUsers();
+    for (const cred of localUsers) {
+      const res = await savePengurusToSupabaseTable(cred.profile, cred.password);
+      if (res.success) {
+        uploaded.pengguna++;
+      } else if (res.error) {
+        if (!errors.some((e) => e.includes('pengguna') || e.includes('Pengguna'))) {
+          errors.push(`Pengguna: ${res.error}`);
+        }
+      }
+    }
+  } catch (err: any) {
+    errors.push(`Pengguna error: ${err.message}`);
+  }
+
+  // 4. Sinkronkan Data Inventaris RT
+  try {
+    const localInv = getLocalInventaris();
+    if (localInv.length > 0) {
+      for (const item of localInv) {
+        const payload: Record<string, any> = {
+          nama_barang: item.nama_barang,
+          jumlah_total: Number(item.jumlah_total) || 1,
+          jumlah_baik: Number(item.jumlah_baik) || 1,
+          jumlah_rusak: Number(item.jumlah_rusak) || 0,
+          kondisi: item.kondisi || 'Baik',
+          lokasi_penyimpanan: item.lokasi_penyimpanan || null,
+          catatan: item.catatan || null,
+        };
+        if (item.id && isUuid(item.id)) {
+          payload.id = item.id;
+        } else {
+          payload.id = crypto.randomUUID();
+        }
+
+        const { error } = await client.from('inventaris_rt').upsert([payload]);
+        if (!error) {
+          uploaded.inventaris++;
+        } else {
+          if (!errors.some((e) => e.includes('inventaris_rt') || e.includes('Inventaris'))) {
+            errors.push(`Inventaris: ${error.message}`);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    errors.push(`Inventaris error: ${err.message}`);
+  }
+
+  // 5. Sinkronkan Log Peminjaman Aset
+  try {
+    const localLoans = getLocalPeminjaman();
+    if (localLoans.length > 0) {
+      for (const loan of localLoans) {
+        const payload: Record<string, any> = {
+          id_barang: loan.id_barang,
+          id_warga: loan.id_warga,
+          tanggal_pinjam: loan.tanggal_pinjam,
+          tanggal_kembali: loan.tanggal_kembali || null,
+          jumlah_pinjam: Number(loan.jumlah_pinjam) || 1,
+          keperluan: loan.keperluan || null,
+          status: loan.status || 'Dipinjam',
+          catatan: loan.catatan || null,
+        };
+        if (loan.id && isUuid(loan.id)) {
+          payload.id = loan.id;
+        } else {
+          payload.id = crypto.randomUUID();
+        }
+
+        const { error } = await client.from('peminjaman_aset_rt').upsert([payload]);
+        if (!error) {
+          uploaded.peminjaman++;
+        }
+      }
+    }
+  } catch (err: any) {
+    errors.push(`Peminjaman error: ${err.message}`);
+  }
+
+  // 6. Sinkronkan Master Kategori
+  try {
+    const { count } = await client.from('kategori').select('id', { count: 'exact', head: true });
+    if (!count || count === 0) {
+      let catsToSeed = INITIAL_CATEGORIES;
+      const rawCat = localStorage.getItem('kas_rt_categories');
+      if (rawCat) {
+        try {
+          catsToSeed = JSON.parse(rawCat);
+        } catch {}
+      }
+      const res = await seedInitialCategoriesToSupabase(catsToSeed);
+      if (res.success) {
+        uploaded.kategori = res.count;
+      }
+    }
+  } catch {}
+
+  // 7. Sinkronkan Transaksi Kas RT
+  try {
+    const rawTx = localStorage.getItem('kas_rt_transactions');
+    if (rawTx) {
+      const txs: Transaction[] = JSON.parse(rawTx);
+      const res = await insertMultipleKasToSupabase(txs);
+      if (res.success) {
+        uploaded.kas = res.insertedCount;
+      } else if (res.error) {
+        errors.push(`Kas RT: ${res.error}`);
+      }
+    }
+  } catch (err: any) {
+    errors.push(`Kas RT error: ${err.message}`);
+  }
+
+  const hasAnyUpload =
+    uploaded.sekretariat ||
+    uploaded.pengguna > 0 ||
+    uploaded.dataWarga > 0 ||
+    uploaded.inventaris > 0 ||
+    uploaded.kas > 0;
+
+  return {
+    success: hasAnyUpload || errors.length === 0,
+    uploaded,
+    errors,
+  };
+};
 
 // Dedicated Script for Sekretariat table only (5 Kolom: RT, RW, Kelurahan, Kecamatan, Alamat)
 export const SEKRETARIAT_SQL_SCHEMA = `-- =========================================================================
@@ -3494,6 +3869,15 @@ export const getSekretariatFromSupabase = async (): Promise<{
 
       if (hasValidRow) {
         const parsed = mapSekretariatRow(firstRow);
+        // Pastikan kolom RT atau RW benar-benar memiliki nilai dan bukan sekadar baris kosong
+        const hasRtRw = Boolean((parsed.rt || '').trim()) || Boolean((parsed.rw || '').trim());
+        if (!hasRtRw) {
+          try {
+            localStorage.removeItem(STORAGE_KEY_SEKRETARIAT);
+          } catch {}
+          return { data: DEFAULT_SEKRETARIAT, fromSupabase: false, error: null, isDbEmpty: true };
+        }
+
         // Simpan salinan ke localStorage agar tetap sinkron saat offline
         try {
           localStorage.setItem(STORAGE_KEY_SEKRETARIAT, JSON.stringify(parsed));
@@ -3515,6 +3899,14 @@ export const getSekretariatFromSupabase = async (): Promise<{
   } catch (err: any) {
     return { data: localData, fromSupabase: false, error: err.message, isDbEmpty: !hasLocalCache };
   }
+};
+
+/**
+ * Helper cepat untuk memeriksa apakah tabel sekretariat di database Supabase masih kosong
+ */
+export const isSekretariatEmptyInSupabase = async (): Promise<boolean> => {
+  const res = await getSekretariatFromSupabase();
+  return res.isDbEmpty;
 };
 
 /**
@@ -4158,6 +4550,8 @@ export const insertInventarisToSupabase = async (
 ): Promise<{
   data: InventarisItem | null;
   error: string | null;
+  tableNotCreated?: boolean;
+  savedLocally?: boolean;
 }> => {
   const client = getSupabase();
   const nextId = crypto.randomUUID();
@@ -4173,7 +4567,7 @@ export const insertInventarisToSupabase = async (
   saveLocalInventaris(localList);
 
   if (!client) {
-    return { data: localItem, error: null };
+    return { data: localItem, error: null, savedLocally: true };
   }
 
   try {
@@ -4186,14 +4580,26 @@ export const insertInventarisToSupabase = async (
     if (error) {
       console.warn('[Supabase Inventaris Insert Error]', error);
       if (error.code === '42P01') {
-        return { data: localItem, error: null };
+        return { 
+          data: localItem, 
+          error: "Tabel 'inventaris_rt' belum dibuat di Supabase (Error 42P01). Data disimpan di penyimpanan browser lokal.", 
+          tableNotCreated: true, 
+          savedLocally: true 
+        };
       }
-      return { data: null, error: error.message };
+      if (error.code === '42501' || error.message?.toLowerCase().includes('row-level security')) {
+        return {
+          data: localItem,
+          error: "Akses tabel 'inventaris_rt' ditolak oleh Row Level Security (RLS) Supabase (Error 42501). Data disimpan lokal.",
+          savedLocally: true,
+        };
+      }
+      return { data: localItem, error: error.message, savedLocally: true };
     }
 
     return { data, error: null };
   } catch (err: any) {
-    return { data: localItem, error: null };
+    return { data: localItem, error: err?.message || 'Gagal menyimpan ke Supabase', savedLocally: true };
   }
 };
 

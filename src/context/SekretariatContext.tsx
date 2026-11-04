@@ -15,7 +15,12 @@ interface SekretariatContextType {
   isDbEmpty: boolean;
   updateSekretariat: (item: Partial<SekretariatItem>) => Promise<{ success: boolean; error: string | null }>;
   deleteSekretariat: () => Promise<{ success: boolean; error: string | null }>;
-  reloadSekretariat: () => Promise<void>;
+  reloadSekretariat: () => Promise<{
+    data: SekretariatItem;
+    fromSupabase: boolean;
+    error: string | null;
+    isDbEmpty: boolean;
+  }>;
   wilayahLabel: string;
   wilayahShort: string;
   kelurahanLabel: string;
@@ -40,8 +45,16 @@ export const SekretariatProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setFromSupabase(res.fromSupabase);
       setError(res.error);
       setIsDbEmpty(res.isDbEmpty);
+      return res;
     } catch (err: any) {
-      setError(err.message || 'Gagal memuat profil sekretariat');
+      const errMsg = err.message || 'Gagal memuat profil sekretariat';
+      setError(errMsg);
+      return {
+        data: DEFAULT_SEKRETARIAT,
+        fromSupabase: false,
+        error: errMsg,
+        isDbEmpty: true,
+      };
     } finally {
       setIsLoading(false);
     }
@@ -178,7 +191,12 @@ export const useSekretariat = (): SekretariatContextType => {
       isDbEmpty: false,
       updateSekretariat: async () => ({ success: false, error: 'Provider not found' }),
       deleteSekretariat: async () => ({ success: false, error: 'Provider not found' }),
-      reloadSekretariat: async () => {},
+      reloadSekretariat: async () => ({
+        data: DEFAULT_SEKRETARIAT,
+        fromSupabase: false,
+        error: null,
+        isDbEmpty: false,
+      }),
       wilayahLabel: 'Sistem Kas RT',
       wilayahShort: 'RT',
       kelurahanLabel: 'Kelurahan',

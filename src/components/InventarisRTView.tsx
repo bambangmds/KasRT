@@ -30,7 +30,9 @@ import {
   Boxes,
   Layers,
   Building2,
-  Sparkles
+  Sparkles,
+  Upload,
+  CloudUpload
 } from 'lucide-react';
 import { InventarisItem, PeminjamanItem, DataWargaItem, SupabaseConnectionStatus } from '../types';
 import { 
@@ -42,7 +44,9 @@ import {
   insertPeminjamanToSupabase,
   updatePeminjamanInSupabase,
   deletePeminjamanFromSupabase,
-  fetchDataWargaFromSupabase
+  fetchDataWargaFromSupabase,
+  SUPABASE_SQL_SCHEMA,
+  syncAllLocalDataToSupabase
 } from '../lib/supabase';
 import { formatSimpleRupiah, formatDateIndo } from '../data/initialData';
 import { useSekretariat } from '../context/SekretariatContext';
@@ -129,6 +133,78 @@ export const InventarisRTView: React.FC<InventarisRTViewProps> = ({
 
   const [isSavingAsset, setIsSavingAsset] = useState(false);
   const [isSavingLoan, setIsSavingLoan] = useState(false);
+  const [copiedSchemaSql, setCopiedSchemaSql] = useState(false);
+  const [isSyncingToSupabase, setIsSyncingToSupabase] = useState(false);
+
+  const handleCopyInventarisSql = () => {
+    const invSql = `-- SKEMA SQL TABEL INVENTARIS RT & PEMINJAMAN ASET LENGKAP RLS
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE IF NOT EXISTS inventaris_rt (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nama_barang TEXT NOT NULL,
+  jumlah_total INTEGER NOT NULL DEFAULT 1,
+  jumlah_baik INTEGER NOT NULL DEFAULT 1,
+  jumlah_rusak INTEGER NOT NULL DEFAULT 0,
+  kondisi TEXT DEFAULT 'Baik',
+  lokasi_penyimpanan TEXT,
+  catatan TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventaris_nama ON inventaris_rt (nama_barang);
+ALTER TABLE inventaris_rt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Inventaris RT" ON inventaris_rt;
+CREATE POLICY "Akses Publik Inventaris RT" ON inventaris_rt FOR ALL USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id_barang UUID NOT NULL REFERENCES inventaris_rt(id) ON DELETE CASCADE,
+  id_warga UUID NOT NULL,
+  tanggal_pinjam DATE NOT NULL,
+  tanggal_kembali DATE,
+  jumlah_pinjam INTEGER NOT NULL DEFAULT 1,
+  keperluan TEXT,
+  status TEXT NOT NULL DEFAULT 'Dipinjam' CHECK (status IN ('Dipinjam', 'Kembali')),
+  catatan TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE peminjaman_aset_rt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt;
+CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL USING (true) WITH CHECK (true);`;
+
+    navigator.clipboard.writeText(invSql);
+    setCopiedSchemaSql(true);
+    onTriggerToast('Skema SQL inventaris & kebijakan RLS berhasil disalin ke clipboard!', 'success', 'SQL Disalin');
+    setTimeout(() => setCopiedSchemaSql(false), 2500);
+  };
+
+  const handleCopyAllTablesSql = () => {
+    navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA);
+    setCopiedSchemaSql(true);
+    onTriggerToast('Seluruh skema 8 tabel Supabase berhasil disalin ke clipboard!', 'success', 'Master SQL Disalin');
+    setTimeout(() => setCopiedSchemaSql(false), 2500);
+  };
+
+  const handleSyncToSupabase = async () => {
+    setIsSyncingToSupabase(true);
+    const res = await syncAllLocalDataToSupabase();
+    setIsSyncingToSupabase(false);
+    if (res.success && (res.uploaded.inventaris > 0 || res.uploaded.pengguna > 0 || res.uploaded.sekretariat)) {
+      onTriggerToast(
+        `Berhasil menyinkronkan data lokal ke Supabase: ${res.uploaded.inventaris} aset, ${res.uploaded.pengguna} pengguna, ${res.uploaded.sekretariat ? '1 profil wilayah' : ''}!`,
+        'success',
+        'Sinkronisasi Sukses'
+      );
+      loadAssets();
+      loadLoans();
+    } else if (res.errors.length > 0) {
+      onTriggerToast(`Catatan sinkronisasi: ${res.errors[0]}`, 'info', 'Info Sinkronisasi');
+    } else {
+      onTriggerToast('Seluruh data inventaris sudah sinkron dengan Supabase.', 'info', 'Sudah Sinkron');
+    }
+  };
 
   // Load Data functions
   const loadAssets = async () => {
@@ -331,11 +407,28 @@ export const InventarisRTView: React.FC<InventarisRTViewProps> = ({
         loadAssets();
       }
     } else {
-      const { error } = await insertInventarisToSupabase(payload);
-      if (error) {
-        onTriggerToast(`Gagal menyimpan aset: ${error}`, 'error', 'Gagal Simpan');
+      const res = await insertInventarisToSupabase(payload);
+      if (res.tableNotCreated) {
+        setTableNotCreated(true);
+        onTriggerToast(
+          `Aset "${formNamaBarang}" tersimpan di memori browser lokal. Catatan: Tabel 'inventaris_rt' belum dibuat di database Supabase (Error 42P01).`,
+          'info',
+          'Tersimpan di Memori Lokal'
+        );
+        setIsAssetModalOpen(false);
+        loadAssets();
+      } else if (res.error && res.savedLocally) {
+        onTriggerToast(
+          `Aset "${formNamaBarang}" disimpan lokal. Status Supabase: ${res.error}`,
+          'info',
+          'Tersimpan Lokal'
+        );
+        setIsAssetModalOpen(false);
+        loadAssets();
+      } else if (res.error) {
+        onTriggerToast(`Gagal menyimpan aset: ${res.error}`, 'error', 'Gagal Simpan');
       } else {
-        onTriggerToast(`Aset baru "${formNamaBarang}" berhasil ditambahkan!`, 'success', 'Berhasil Disimpan');
+        onTriggerToast(`Aset baru "${formNamaBarang}" berhasil disimpan langsung ke tabel Supabase!`, 'success', 'Berhasil Disimpan');
         setIsAssetModalOpen(false);
         loadAssets();
       }
@@ -558,28 +651,67 @@ export const InventarisRTView: React.FC<InventarisRTViewProps> = ({
 
       {/* SQL Setup Helper for Supabase if tables not created yet */}
       {tableNotCreated && (
-        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5 text-amber-900 shadow-2xs space-y-3">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-bold text-sm text-amber-950">Skema SQL Inventaris & Peminjaman Belum Dibuat</h4>
-              <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                Tabel <code className="font-mono bg-amber-100 px-1 rounded font-bold">inventaris_rt</code> dan <code className="font-mono bg-amber-100 px-1 rounded font-bold">peminjaman_aset_rt</code> belum terdeteksi di database Supabase Anda.
-              </p>
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5 text-amber-950 shadow-2xs space-y-3.5 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-amber-950">
+                  Tabel <code className="font-mono bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 font-bold">inventaris_rt</code> Belum Dibuat di Supabase
+                </h4>
+                <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
+                  Data yang Anda masukkan saat ini <strong>tersimpan aman di memori browser lokal</strong>. Agar data tersimpan online di server Supabase, silakan buat tabelnya di <strong>Supabase SQL Editor</strong> proyek Anda.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={handleCopyInventarisSql}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                {copiedSchemaSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedSchemaSql ? 'SQL Tersalin!' : 'Salin SQL Inventaris'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyAllTablesSql}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Salin Semua 8 Tabel</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSyncToSupabase}
+                disabled={isSyncingToSupabase}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSyncingToSupabase ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudUpload className="w-3.5 h-3.5" />}
+                <span>{isSyncingToSupabase ? 'Menyinkronkan...' : 'Sinkronkan ke Supabase'}</span>
+              </button>
             </div>
           </div>
-          <div className="bg-slate-900 text-slate-100 rounded-xl p-3 text-[11px] font-mono overflow-x-auto max-h-36">
+
+          <div className="bg-slate-900 text-slate-100 rounded-xl p-3 text-[11px] font-mono overflow-x-auto max-h-36 leading-relaxed">
 {`CREATE TABLE IF NOT EXISTS inventaris_rt (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nama_barang TEXT NOT NULL,
   jumlah_total INTEGER NOT NULL DEFAULT 1,
   jumlah_baik INTEGER NOT NULL DEFAULT 1,
   jumlah_rusak INTEGER NOT NULL DEFAULT 0,
-  kondisi TEXT,
+  kondisi TEXT DEFAULT 'Baik',
   lokasi_penyimpanan TEXT,
   catatan TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+ALTER TABLE inventaris_rt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Inventaris RT" ON inventaris_rt;
+CREATE POLICY "Akses Publik Inventaris RT" ON inventaris_rt FOR ALL USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -589,13 +721,18 @@ CREATE TABLE IF NOT EXISTS peminjaman_aset_rt (
   tanggal_kembali DATE,
   jumlah_pinjam INTEGER NOT NULL DEFAULT 1,
   keperluan TEXT,
-  status TEXT NOT NULL CHECK (status IN ('Dipinjam', 'Kembali')),
+  status TEXT NOT NULL DEFAULT 'Dipinjam' CHECK (status IN ('Dipinjam', 'Kembali')),
   catatan TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);`}
+);
+
+ALTER TABLE peminjaman_aset_rt ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt;
+CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL USING (true) WITH CHECK (true);`}
           </div>
-          <p className="text-[10px] text-amber-700">
-            *Salin script SQL di atas dan jalankan pada <strong>Supabase SQL Editor</strong> proyek Anda, lalu segarkan halaman ini.
+          <p className="text-[11px] text-amber-800 flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+            <span>Setelah query SQL dijalankan di <strong>Supabase SQL Editor</strong>, klik <strong>"Sinkronkan ke Supabase"</strong> agar aset yang sudah Anda input langsung masuk ke Supabase!</span>
           </p>
         </div>
       )}

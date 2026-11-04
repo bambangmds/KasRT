@@ -522,6 +522,30 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
 63. **Penghapusan Kartu/Frame Status Supabase (`kas_rt Live`) di Sidebar (`Sidebar.tsx`)**:
     - Kartu indikator status Supabase (`Supabase: kas_rt (Live)`) pada bagian bawah navigasi Sidebar telah dihapus secara bersih agar tampilan Sidebar lebih ringkas dan fokus pada menu navigasi serta profil pengguna.
 
+64. **Penyempurnaan Master Skema SQL Supabase & Fitur Sinkronisasi Data Lokal (`supabase_schema_lengkap.sql`)**:
+    - **Penyebab Masalah**: Di Supabase (PostgreSQL), tabel database tidak dibuat otomatis oleh aplikasi saat melakukan *insert*. Jika tabel belum dibuat di Supabase SQL Editor (`42P01`), aplikasi mengamankan data pengguna baru dan inventaris ke memori browser lokal (`localStorage`) agar tidak hilang, namun di Supabase dashboard tabel masih belum ada / kosong.
+    - **Master Skema SQL Lengkap (8 Tabel + RLS Policies)**:
+      - Disediakan file master `/public/supabase_schema_lengkap.sql` dan `/supabase_schema_lengkap.sql` mencakup seluruh tabel: `sekretariat`, `pengguna`, `data_warga`, `inventaris_rt`, `peminjaman_aset_rt`, `kategori`, `kas_rt`, dan `darurat_rt`.
+      - Dilengkapi kebijakan Row Level Security (RLS) `FOR ALL USING (true) WITH CHECK (true)` sehingga tidak terkena pemblokiran izin (`42501`).
+    - **Diagnostik Status Tabel Supabase Live (`checkSupabaseTablesStatus`)**:
+      - Memeriksa ketersediaan dan jumlah baris masing-masing tabel secara langsung di Supabase pada `SupabaseModal.tsx`.
+    - **Tombol Satu-Klik "Unggah / Sinkronkan Data Lokal ke Supabase" (`syncAllLocalDataToSupabase`)**:
+      - Menghitung rekapitulasi data lokal yang tersimpan di browser (pengguna baru, profil wilayah, data warga, baris inventaris) dan mengunggahnya ke tabel Supabase yang bersangkutan tanpa perlu mengetik ulang dari awal.
+    - **Transparansi Notifikasi pada Menu Inventaris (`InventarisRTView.tsx`)**:
+      - Menyajikan banner interaktif dengan tombol "Salin SQL Inventaris", "Salin Semua 8 Tabel", dan "Sinkronkan ke Supabase".
+
+65. **Alur Otomatis Menuju Registrasi Wilayah/Lokasi Saat Tabel Sekretariat Kosong**:
+    - **Penyebab & Kebutuhan**: Setelah pengguna selesai memasukkan kredensial Supabase (`SUPABASE_URL` & `SUPABASE_ANON_KEY`), jika tabel `sekretariat` di database Supabase masih kosong / belum ada isinya, aplikasi harus otomatis mengarahkan ke layar pendaftaran wilayah/lokasi (`SekretariatSetupScreen`).
+    - **Pembaruan Alur Eksekusi**:
+      - Pada `SupabaseModal.tsx`, setelah kredensial berhasil diverifikasi dan disimpan (`testSupabaseConnection`), sistem langsung memicu sinkronisasi dan memeriksa status tabel `sekretariat` via `getSekretariatFromSupabase()`.
+      - Jika `isDbEmpty === true`:
+        1. Modal konfigurasi Supabase otomatis ditutup (`onClose()`).
+        2. Sesi login lokal lama dibersihkan (`sessionStorage.removeItem('kas_rt_active_user')` dan `setActiveUser(null)`).
+        3. Toast informatif dimunculkan: *"Koneksi Supabase berhasil terhubung! Tabel sekretariat belum ada isinya, menuju ke registrasi wilayah & lokasi RT..."*.
+        4. Aplikasi seketika merender layar **Registrasi Wilayah/Lokasi RT & Pengurus Inti** (`SekretariatSetupScreen`).
+      - Pada `handleQuickConnect` di halaman utama juga diterapkan verifikasi `sekRes.isDbEmpty` yang sama persis.
+      - Pada `SekretariatSetupScreen`, ditambahkan tombol **"Pengaturan Supabase"** di header atas dan modal konfigurasi Supabase terhubung agar pengurus tetap dapat mengecek status koneksi sewaktu-waktu.
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
@@ -529,5 +553,6 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
 - [ ] Pencatatan data nomor rumah / blok warga untuk rekap pembayaran iuran per KK.
 - [ ] Penambahan hak akses atau password proteksi untuk menu Koreksi/Hapus.
 - [ ] Fitur unduh laporan bulanan siap cetak dalam format PDF resmi RT.
+
 
 

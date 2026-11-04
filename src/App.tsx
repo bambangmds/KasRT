@@ -237,9 +237,21 @@ export default function App() {
 
     if (res.success) {
       setSupabaseCredentials(sanitizedUrl, sanitizedKey);
-      showToast('Koneksi Supabase berhasil diaktifkan dan terhubung ke tabel kas_rt!', 'success', 'Supabase Live Aktif');
+      const sekRes = await reloadSekretariat();
       loadTransactions(true);
       loadCategories(true);
+
+      if (sekRes.isDbEmpty) {
+        sessionStorage.removeItem('kas_rt_active_user');
+        setActiveUser(null);
+        showToast(
+          'Koneksi Supabase berhasil! Tabel sekretariat belum ada isinya, menuju ke registrasi wilayah & lokasi RT...',
+          'info',
+          'Registrasi Wilayah Wajib'
+        );
+      } else {
+        showToast('Koneksi Supabase berhasil diaktifkan dan terhubung ke tabel kas_rt!', 'success', 'Supabase Live Aktif');
+      }
     } else {
       setSupabaseCredentials(sanitizedUrl, sanitizedKey);
       setConnectionStatus('error');
@@ -363,6 +375,25 @@ export default function App() {
     },
     [showToast]
   );
+
+  // Segarkan seluruh data Supabase dan periksa status tabel sekretariat
+  const handleRefreshSupabaseData = useCallback(async () => {
+    setIsFetchingSupabase(true);
+    const sekRes = await reloadSekretariat();
+    await Promise.all([
+      loadTransactions(false),
+      loadCategories(false),
+    ]);
+    setIsFetchingSupabase(false);
+
+    // Jika tabel sekretariat di database Supabase kosong, bersihkan sesi login lokal lama
+    // agar langsung diarahkan ke pendaftaran wilayah & pengurus inti
+    if (sekRes.isDbEmpty) {
+      sessionStorage.removeItem('kas_rt_active_user');
+      setActiveUser(null);
+    }
+    return sekRes;
+  }, [reloadSekretariat, loadTransactions, loadCategories]);
 
   // Poll & Load active emergencies
   const loadActiveEmergencies = useCallback(async () => {
@@ -1041,6 +1072,15 @@ export default function App() {
           }}
           isLoading={isSekretariatLoading}
           error={sekretariatError}
+          onOpenSupabaseConfig={() => setIsSupabaseModalOpen(true)}
+        />
+        {/* Supabase Configuration Modal juga bisa diakses dari SekretariatSetupScreen */}
+        <SupabaseModal
+          isOpen={isSupabaseModalOpen}
+          onClose={() => setIsSupabaseModalOpen(false)}
+          connectionStatus={connectionStatus}
+          onRefreshData={handleRefreshSupabaseData}
+          onTriggerToast={showToast}
         />
         <Toast toast={toast} onClose={() => setToast(null)} />
       </>
@@ -1097,7 +1137,7 @@ export default function App() {
           isOpen={isSupabaseModalOpen}
           onClose={() => setIsSupabaseModalOpen(false)}
           connectionStatus={connectionStatus}
-          onRefreshData={() => loadTransactions(true)}
+          onRefreshData={handleRefreshSupabaseData}
           onTriggerToast={showToast}
         />
         <Toast toast={toast} onClose={() => setToast(null)} />
@@ -1161,6 +1201,15 @@ export default function App() {
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsSupabaseModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-50 border border-emerald-300 text-slate-800 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
+                  title="Cek Status Tabel & Sinkronkan Data Lokal ke Supabase"
+                >
+                  <Database className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Status Database & Sinkronisasi</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => loadTransactions(true)}
@@ -1297,11 +1346,7 @@ export default function App() {
         isOpen={isSupabaseModalOpen}
         onClose={() => setIsSupabaseModalOpen(false)}
         connectionStatus={connectionStatus}
-        onRefreshData={async () => {
-          await reloadSekretariat();
-          loadTransactions(true);
-          loadCategories(true);
-        }}
+        onRefreshData={handleRefreshSupabaseData}
         onTriggerToast={showToast}
       />
 

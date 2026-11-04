@@ -258,49 +258,50 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 1. Header Halaman */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-200">
+      {/* 1. Header Halaman (Warna Dasar Abu-abu Tebal & Ringkas Horizontal) */}
+      <div className="bg-slate-200 p-3 sm:py-3 sm:px-4.5 rounded-2xl border border-slate-300 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 min-w-0 flex-1">
+          <div className="flex items-center gap-2 shrink-0">
+            <Layers className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-700 shrink-0" />
+            <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight whitespace-nowrap">
+              Kelola Data Warga & Kategori
+            </h1>
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-indigo-800 bg-white px-2 py-0.5 rounded-md border border-slate-300 shadow-2xs shrink-0">
               Master Data & Kategori RT
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Layers className="w-7 h-7 text-indigo-600" />
-            Kelola Data Warga & Kategori
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl mt-1">
+          <span className="hidden lg:inline text-slate-400 font-normal shrink-0">•</span>
+          <p className="text-xs text-slate-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
             Pusat pengelolaan master data penduduk ({wilayahShort}) dan pos kategori kas penerimaan serta belanja RT.
           </p>
         </div>
       </div>
 
-      {/* 2. Sub Menu Navigation */}
-      <div className="flex border-b border-slate-200 bg-white p-1.5 rounded-2xl shadow-sm border print:hidden gap-1.5 flex-wrap">
+      {/* 2. Sub Menu Navigation (Warna Dasar Abu-abu / bg-slate-200) */}
+      <div className="flex bg-slate-200 p-1.5 rounded-2xl border border-slate-300 shadow-xs print:hidden gap-1.5 flex-wrap">
         <button
           type="button"
           onClick={() => setActiveSubTab('data-warga')}
-          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeSubTab === 'data-warga'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-1 ring-indigo-500/30 font-extrabold'
-              : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60'
+              : 'text-slate-700 hover:text-indigo-800 hover:bg-white/80'
           }`}
         >
-          <Users className={`w-4 h-4 transition-transform ${activeSubTab === 'data-warga' ? 'text-blue-100 scale-110' : 'text-slate-500'}`} />
+          <Users className={`w-4 h-4 transition-transform ${activeSubTab === 'data-warga' ? 'text-blue-100 scale-110' : 'text-slate-600'}`} />
           <span>Kelola Data Warga</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubTab('kategori-kas')}
-          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeSubTab === 'kategori-kas'
               ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 ring-1 ring-emerald-500/30 font-extrabold'
-              : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/60'
+              : 'text-slate-700 hover:text-emerald-800 hover:bg-white/80'
           }`}
         >
-          <Tag className={`w-4 h-4 transition-transform ${activeSubTab === 'kategori-kas' ? 'text-emerald-100 scale-110' : 'text-slate-500'}`} />
+          <Tag className={`w-4 h-4 transition-transform ${activeSubTab === 'kategori-kas' ? 'text-emerald-100 scale-110' : 'text-slate-600'}`} />
           <span>Pos Kategori Kas</span>
         </button>
       </div>
@@ -475,19 +476,19 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-950 border-b border-slate-800 text-[11px] font-bold text-white uppercase tracking-wider">
-                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">No</th>
-                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Pos Kategori</th>
-                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Nominal Acuan</th>
-                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Jenis Kas</th>
-                <th className="py-3.5 px-4 sm:px-6 text-white font-bold bg-slate-950">Deskripsi / Peruntukan</th>
-                <th className="py-3.5 px-4 sm:px-6 text-center text-white font-bold bg-slate-950">Pemakaian Transaksi</th>
-                <th className="py-3.5 px-4 sm:px-6 text-right text-white font-bold bg-slate-950">Aksi</th>
+                <th className="py-2.5 px-3 text-white font-bold bg-slate-950 w-10">No</th>
+                <th className="py-2.5 px-3 text-white font-bold bg-slate-950">Pos Kategori</th>
+                <th className="py-2.5 px-3 text-white font-bold bg-slate-950">Nominal Acuan</th>
+                <th className="py-2.5 px-3 text-white font-bold bg-slate-950">Jenis Kas</th>
+                <th className="py-2.5 px-3 text-white font-bold bg-slate-950">Deskripsi / Peruntukan</th>
+                <th className="py-2.5 px-3 text-center text-white font-bold bg-slate-950">Pemakaian Transaksi</th>
+                <th className="py-2.5 px-3 text-right text-white font-bold bg-slate-950">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {filteredCategories.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Tag className="w-8 h-8 text-slate-300 stroke-[1.5]" />
                       <p className="font-medium text-slate-600">Tidak ada kategori yang sesuai.</p>
@@ -516,12 +517,12 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
                   return (
                     <tr key={cat.id || `${cat.type}-${cat.name}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
                       {/* No */}
-                      <td className="py-4 px-4 sm:px-6 text-slate-400 font-mono text-xs w-12">
+                      <td className="py-2 px-3 text-slate-400 font-mono text-xs w-10">
                         {idx + 1}
                       </td>
 
                       {/* Pos Kategori */}
-                      <td className="py-4 px-4 sm:px-6">
+                      <td className="py-2 px-3">
                         <div className="font-semibold text-slate-800 flex items-center gap-2">
                           <span>{cat.name}</span>
                           {cat.type === 'Masuk' && (
@@ -537,7 +538,7 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
                       </td>
 
                       {/* Nominal Acuan */}
-                      <td className="py-4 px-4 sm:px-6 font-mono text-xs text-slate-800 font-semibold">
+                      <td className="py-2 px-3 font-mono text-xs text-slate-800 font-semibold">
                         {cat.nominal && cat.nominal > 0 ? (
                           <span>{formatSimpleRupiah(cat.nominal)}</span>
                         ) : (
@@ -546,9 +547,9 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
                       </td>
 
                       {/* Jenis Kas */}
-                      <td className="py-4 px-4 sm:px-6">
+                      <td className="py-2 px-3">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                             isMasuk
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-rose-50 text-rose-700 border-rose-200'
@@ -564,7 +565,7 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
                       </td>
 
                       {/* Deskripsi */}
-                      <td className="py-4 px-4 sm:px-6 text-slate-600 max-w-xs sm:max-w-md">
+                      <td className="py-2 px-3 text-slate-600 max-w-xs sm:max-w-md">
                         {cat.description ? (
                           <span className="line-clamp-2">{cat.description}</span>
                         ) : (
@@ -573,33 +574,33 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
                       </td>
 
                       {/* Pemakaian Transaksi */}
-                      <td className="py-4 px-4 sm:px-6 text-center">
+                      <td className="py-2 px-3 text-center">
                         {usage.count > 0 ? (
                           <div className="inline-flex flex-col items-center">
                             <span 
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"
                               title={`Kategori ini digunakan pada ${usage.count} transaksi di tabel kas_rt`}
                             >
                               <Lock className="w-3 h-3 text-amber-600 shrink-0" />
                               <span>{usage.count} Transaksi</span>
                             </span>
-                            <span className="text-[11px] text-slate-500 font-mono mt-1">
+                            <span className="text-[10px] text-slate-500 font-mono">
                               {formatSimpleRupiah(usage.totalAmount)}
                             </span>
                           </div>
                         ) : (
                           <span 
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
                             title="Kategori belum pernah digunakan di kas_rt, aman dihapus"
                           >
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
                             <span>Belum Digunakan</span>
                           </span>
                         )}
                       </td>
 
                       {/* Aksi */}
-                      <td className="py-4 px-4 sm:px-6 text-right">
+                      <td className="py-2 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Tombol Edit */}
                           <button
