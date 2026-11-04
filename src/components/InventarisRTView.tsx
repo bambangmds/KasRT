@@ -32,7 +32,10 @@ import {
   Building2,
   Sparkles,
   Upload,
-  CloudUpload
+  CloudUpload,
+  Printer,
+  FileText,
+  MapPin
 } from 'lucide-react';
 import { InventarisItem, PeminjamanItem, DataWargaItem, SupabaseConnectionStatus } from '../types';
 import { 
@@ -50,6 +53,118 @@ import {
 } from '../lib/supabase';
 import { formatSimpleRupiah, formatDateIndo } from '../data/initialData';
 import { useSekretariat } from '../context/SekretariatContext';
+import { exportInventarisPDF } from '../lib/exportUtils';
+
+// 6 Tema Warna Modern untuk Kartu Grid Inventaris
+export const MODERN_CARD_THEMES = [
+  {
+    id: 'indigo',
+    name: 'Electric Indigo',
+    cardBg: 'bg-gradient-to-b from-indigo-50/90 via-white to-slate-50/40',
+    border: 'border-indigo-200/80 hover:border-indigo-400',
+    topBar: 'bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-600',
+    iconBg: 'bg-gradient-to-tr from-indigo-600 to-sky-500 text-white shadow-md shadow-indigo-600/25',
+    pillText: 'text-indigo-800',
+    pillBg: 'bg-indigo-100/70 border-indigo-200',
+    accentText: 'text-indigo-700',
+    statTotalBg: 'bg-indigo-50/70 border-indigo-100 text-indigo-950',
+    locationBadge: 'bg-indigo-50/60 text-indigo-700 border-indigo-100',
+    btnAction: 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-xs shadow-indigo-600/25',
+    progressBg: 'bg-gradient-to-r from-indigo-600 to-sky-500',
+    hoverGlow: 'hover:shadow-lg hover:shadow-indigo-500/10',
+  },
+  {
+    id: 'emerald',
+    name: 'Emerald Mint',
+    cardBg: 'bg-gradient-to-b from-emerald-50/90 via-white to-slate-50/40',
+    border: 'border-emerald-200/80 hover:border-emerald-400',
+    topBar: 'bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600',
+    iconBg: 'bg-gradient-to-tr from-emerald-600 to-teal-400 text-white shadow-md shadow-emerald-600/25',
+    pillText: 'text-emerald-800',
+    pillBg: 'bg-emerald-100/70 border-emerald-200',
+    accentText: 'text-emerald-700',
+    statTotalBg: 'bg-emerald-50/70 border-emerald-100 text-emerald-950',
+    locationBadge: 'bg-emerald-50/60 text-emerald-700 border-emerald-100',
+    btnAction: 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white shadow-xs shadow-emerald-600/25',
+    progressBg: 'bg-gradient-to-r from-emerald-600 to-teal-400',
+    hoverGlow: 'hover:shadow-lg hover:shadow-emerald-500/10',
+  },
+  {
+    id: 'violet',
+    name: 'Royal Violet',
+    cardBg: 'bg-gradient-to-b from-purple-50/90 via-white to-slate-50/40',
+    border: 'border-purple-200/80 hover:border-purple-400',
+    topBar: 'bg-gradient-to-r from-purple-600 via-fuchsia-500 to-purple-600',
+    iconBg: 'bg-gradient-to-tr from-purple-600 to-fuchsia-500 text-white shadow-md shadow-purple-600/25',
+    pillText: 'text-purple-800',
+    pillBg: 'bg-purple-100/70 border-purple-200',
+    accentText: 'text-purple-700',
+    statTotalBg: 'bg-purple-50/70 border-purple-100 text-purple-950',
+    locationBadge: 'bg-purple-50/60 text-purple-700 border-purple-100',
+    btnAction: 'bg-gradient-to-r from-purple-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white shadow-xs shadow-purple-600/25',
+    progressBg: 'bg-gradient-to-r from-purple-600 to-fuchsia-500',
+    hoverGlow: 'hover:shadow-lg hover:shadow-purple-500/10',
+  },
+  {
+    id: 'amber',
+    name: 'Sunset Amber',
+    cardBg: 'bg-gradient-to-b from-amber-50/90 via-white to-slate-50/40',
+    border: 'border-amber-200/80 hover:border-amber-400',
+    topBar: 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600',
+    iconBg: 'bg-gradient-to-tr from-amber-600 to-orange-400 text-white shadow-md shadow-amber-600/25',
+    pillText: 'text-amber-800',
+    pillBg: 'bg-amber-100/70 border-amber-200',
+    accentText: 'text-amber-800',
+    statTotalBg: 'bg-amber-50/70 border-amber-100 text-amber-950',
+    locationBadge: 'bg-amber-50/60 text-amber-800 border-amber-100',
+    btnAction: 'bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white shadow-xs shadow-amber-600/25',
+    progressBg: 'bg-gradient-to-r from-amber-500 to-orange-500',
+    hoverGlow: 'hover:shadow-lg hover:shadow-amber-500/10',
+  },
+  {
+    id: 'cyan',
+    name: 'Aqua Marine',
+    cardBg: 'bg-gradient-to-b from-cyan-50/90 via-white to-slate-50/40',
+    border: 'border-cyan-200/80 hover:border-cyan-400',
+    topBar: 'bg-gradient-to-r from-cyan-600 via-sky-500 to-blue-600',
+    iconBg: 'bg-gradient-to-tr from-cyan-600 to-sky-400 text-white shadow-md shadow-cyan-600/25',
+    pillText: 'text-cyan-800',
+    pillBg: 'bg-cyan-100/70 border-cyan-200',
+    accentText: 'text-cyan-800',
+    statTotalBg: 'bg-cyan-50/70 border-cyan-100 text-cyan-950',
+    locationBadge: 'bg-cyan-50/60 text-cyan-800 border-cyan-100',
+    btnAction: 'bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-700 hover:to-blue-800 text-white shadow-xs shadow-cyan-600/25',
+    progressBg: 'bg-gradient-to-r from-cyan-600 to-sky-500',
+    hoverGlow: 'hover:shadow-lg hover:shadow-cyan-500/10',
+  },
+  {
+    id: 'rose',
+    name: 'Coral Rose',
+    cardBg: 'bg-gradient-to-b from-rose-50/90 via-white to-slate-50/40',
+    border: 'border-rose-200/80 hover:border-rose-400',
+    topBar: 'bg-gradient-to-r from-rose-600 via-pink-500 to-rose-600',
+    iconBg: 'bg-gradient-to-tr from-rose-600 to-pink-400 text-white shadow-md shadow-rose-600/25',
+    pillText: 'text-rose-800',
+    pillBg: 'bg-rose-100/70 border-rose-200',
+    accentText: 'text-rose-700',
+    statTotalBg: 'bg-rose-50/70 border-rose-100 text-rose-950',
+    locationBadge: 'bg-rose-50/60 text-rose-800 border-rose-100',
+    btnAction: 'bg-gradient-to-r from-rose-600 to-pink-700 hover:from-rose-700 hover:to-pink-800 text-white shadow-xs shadow-rose-600/25',
+    progressBg: 'bg-gradient-to-r from-rose-600 to-pink-500',
+    hoverGlow: 'hover:shadow-lg hover:shadow-rose-500/10',
+  },
+];
+
+// Helper kalkulasi tema warna kartu berdasarkan hash nama barang
+export function getCardTheme(assetName: string, id: string) {
+  let hash = 0;
+  const key = `${assetName || 'barang'}_${id || 'id'}`;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  return MODERN_CARD_THEMES[Math.abs(hash) % MODERN_CARD_THEMES.length];
+}
 
 interface InventarisRTViewProps {
   connectionStatus?: SupabaseConnectionStatus;
@@ -60,7 +175,7 @@ export const InventarisRTView: React.FC<InventarisRTViewProps> = ({
   connectionStatus = 'connected',
   onTriggerToast,
 }) => {
-  const { wilayahShort, wilayahLabel } = useSekretariat();
+  const { wilayahShort, wilayahLabel, sekretariat } = useSekretariat();
 
   // Subtabs state: 'daftar-aset' or 'log-peminjaman'
   const [activeSubTab, setActiveSubTab] = useState<'daftar-aset' | 'log-peminjaman'>('daftar-aset');
@@ -135,6 +250,38 @@ export const InventarisRTView: React.FC<InventarisRTViewProps> = ({
   const [isSavingLoan, setIsSavingLoan] = useState(false);
   const [copiedSchemaSql, setCopiedSchemaSql] = useState(false);
   const [isSyncingToSupabase, setIsSyncingToSupabase] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (isExportingPDF) return;
+    setIsExportingPDF(true);
+    try {
+      const isLoan = activeSubTab === 'log-peminjaman';
+      const filterLabel = isLoan
+        ? (searchLoanQuery || filterLoanStatus ? 'Catatan Peminjaman Tersaring' : 'Semua Catatan Peminjaman')
+        : (searchAssetQuery || filterAssetKondisi ? 'Aset Inventaris Tersaring' : 'Semua Aset Inventaris');
+
+      await exportInventarisPDF(filteredAssets, {
+        sekretariat,
+        filterLabel,
+        activeSubTab,
+        loans: filteredLoans,
+      });
+
+      onTriggerToast(
+        isLoan 
+          ? 'Dokumen PDF Log Peminjaman Aset berhasil dicetak & diunduh!' 
+          : 'Dokumen PDF Daftar Inventaris & Aset RT berhasil dicetak & diunduh!',
+        'success',
+        'PDF Berhasil Dibuat'
+      );
+    } catch (err: any) {
+      console.error('[Export PDF Error]', err);
+      onTriggerToast(`Gagal mencetak dokumen PDF: ${err?.message || 'Terjadi kesalahan sistem'}`, 'error', 'Gagal Cetak PDF');
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
 
   const handleCopyInventarisSql = () => {
     const invSql = `-- SKEMA SQL TABEL INVENTARIS RT & PEMINJAMAN ASET LENGKAP RLS
@@ -646,6 +793,21 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
             <RefreshCw className={`w-4 h-4 text-indigo-600 ${(isAssetsLoading || isLoansLoading) ? 'animate-spin' : ''}`} />
             <span>Segarkan Data</span>
           </button>
+
+          <button 
+            type="button"
+            onClick={handleExportPDF}
+            disabled={isExportingPDF || (activeSubTab === 'daftar-aset' ? assets.length === 0 : loans.length === 0)}
+            className="px-4 py-2 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-700 text-white rounded-xl shadow-xs shadow-rose-600/20 transition-all flex items-center gap-2 text-xs font-extrabold disabled:opacity-50 cursor-pointer active:scale-95"
+            title="Cetak Laporan Resmi ke Format Dokumen PDF Siap Cetak / Arsip"
+          >
+            {isExportingPDF ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <Printer className="w-4 h-4 text-rose-100" />
+            )}
+            <span>{isExportingPDF ? 'Membuat PDF...' : 'Cetak ke PDF'}</span>
+          </button>
         </div>
       </div>
 
@@ -946,15 +1108,32 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
               )}
             </div>
 
-            {/* Action Add Asset Button */}
-            <button
-              type="button"
-              onClick={handleOpenAddAsset}
-              className="px-4 py-2.5 bg-gradient-to-r from-violet-600 via-indigo-600 to-slate-900 hover:from-violet-700 hover:to-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 shrink-0"
-            >
-              <Plus className="w-4 h-4 text-indigo-200" />
-              <span>Tambah Aset Inventaris Baru</span>
-            </button>
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleExportPDF}
+                disabled={isExportingPDF || assets.length === 0}
+                className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs sm:text-sm rounded-xl shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
+                title="Cetak Dokumen PDF Daftar Inventaris & Aset RT"
+              >
+                {isExportingPDF ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                ) : (
+                  <Printer className="w-4 h-4 text-rose-600" />
+                )}
+                <span>Cetak PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenAddAsset}
+                className="px-4 py-2.5 bg-gradient-to-r from-violet-600 via-indigo-600 to-slate-900 hover:from-violet-700 hover:to-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 shrink-0"
+              >
+                <Plus className="w-4 h-4 text-indigo-200" />
+                <span>Tambah Aset Inventaris Baru</span>
+              </button>
+            </div>
           </div>
 
           {/* MAIN DATA DISPLAY (TABLE MODE - BARIS RAPI KE KANAN) */}
@@ -1125,86 +1304,196 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
               </div>
             </div>
           ) : (
-            /* TAMPILAN KARTU GRID (OPSIONAL) */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredAssets.map(asset => (
-                <div key={asset.id} className="bg-white rounded-2xl border border-slate-200 shadow-3xs hover:shadow-xs transition-all duration-300 p-5 flex flex-col justify-between space-y-4">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-extrabold text-slate-800 text-sm sm:text-base capitalize">
-                        {asset.nama_barang}
-                      </h4>
-                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border shrink-0 ${
-                        asset.jumlah_baik === asset.jumlah_total 
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                          : asset.jumlah_baik > 0 
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-rose-50 text-rose-700 border-rose-200'
-                      }`}>
-                        {asset.kondisi || 'Baik'}
-                      </span>
-                    </div>
+            /* TAMPILAN KARTU GRID MODERN DENGAN PALET WARNA INOVATIF */
+            filteredAssets.length === 0 ? (
+              <div className="bg-white p-12 text-center text-slate-400 rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-2">
+                <Package className="w-10 h-10 text-slate-300" />
+                <p className="font-bold text-slate-600 text-sm">Tidak ada aset inventaris yang ditemukan</p>
+                <p className="text-xs text-slate-400">Coba ubah kata kunci pencarian atau tambah data aset baru.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {paginatedAssets.map((asset, idx) => {
+                    const theme = getCardTheme(asset.nama_barang, asset.id);
+                    const isFullyBaik = asset.jumlah_baik === asset.jumlah_total;
+                    const hasGoodStock = asset.jumlah_baik > 0;
+                    const pct = asset.jumlah_total > 0 ? Math.round((asset.jumlah_baik / asset.jumlah_total) * 100) : 0;
+                    const itemNumber = (currentAssetPage - 1) * assetItemsPerPage + idx + 1;
 
-                    <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center text-xs mt-3">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block font-bold uppercase">Total</span>
-                        <span className="font-extrabold text-slate-800 block text-sm mt-0.5">{asset.jumlah_total}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-emerald-500 block font-bold uppercase">Tersedia</span>
-                        <span className="font-extrabold text-emerald-600 block text-sm mt-0.5">{asset.jumlah_baik}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-rose-400 block font-bold uppercase">Rusak</span>
-                        <span className="font-extrabold text-rose-600 block text-sm mt-0.5">{asset.jumlah_rusak}</span>
-                      </div>
-                    </div>
+                    return (
+                      <div 
+                        key={asset.id} 
+                        className={`relative rounded-2xl border ${theme.border} ${theme.cardBg} ${theme.hoverGlow} transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-xs hover:-translate-y-0.5 group`}
+                      >
+                        {/* Top Accent Strip */}
+                        <div className={`h-1.5 w-full ${theme.topBar}`} />
 
-                    <div className="space-y-1.5 text-[11px] text-slate-500 mt-4 font-medium">
-                      <div className="flex items-center gap-2">
-                        <Database className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate"><strong>Lokasi:</strong> {asset.lokasi_penyimpanan || 'Gudang Kantor RT'}</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2"><strong>Catatan:</strong> {asset.catatan || `Milik warga ${wilayahShort}.`}</span>
-                      </div>
-                    </div>
-                  </div>
+                        <div className="p-5 flex flex-col justify-between flex-1 space-y-4">
+                          <div>
+                            {/* Header Baris: Ikon, Nama & Kondisi */}
+                            <div className="flex items-start justify-between gap-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-11 h-11 rounded-xl ${theme.iconBg} flex items-center justify-center shrink-0`}>
+                                  <Package className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                  <h4 className="font-extrabold text-slate-900 text-sm sm:text-base capitalize line-clamp-1" title={asset.nama_barang}>
+                                    {asset.nama_barang}
+                                  </h4>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className={`text-[10px] font-mono font-black ${theme.accentText}`}>
+                                      #{itemNumber}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-mono">
+                                      • {asset.id ? asset.id.substring(0, 8) : 'ASET'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
 
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2.5">
+                              <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border shrink-0 inline-flex items-center gap-1.5 ${
+                                isFullyBaik 
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                  : hasGoodStock 
+                                  ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                  : 'bg-rose-50 text-rose-800 border-rose-200'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                  isFullyBaik ? 'bg-emerald-500 animate-pulse' : hasGoodStock ? 'bg-blue-500' : 'bg-rose-500'
+                                }`} />
+                                <span>{asset.kondisi || 'Baik'}</span>
+                              </span>
+                            </div>
+
+                            {/* Meter Ketersediaan Stok Siap Pakai */}
+                            <div className="mt-3.5 bg-white/90 p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+                              <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                                <span className="text-slate-600 flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>Ketersediaan Siap Pakai</span>
+                                </span>
+                                <span className="font-extrabold text-slate-900 tabular-nums font-mono">
+                                  {pct}% <span className="text-[11px] text-slate-500">({asset.jumlah_baik}/{asset.jumlah_total})</span>
+                                </span>
+                              </div>
+                              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200/60">
+                                <div 
+                                  className={`h-full ${theme.progressBg} rounded-full transition-all duration-500`}
+                                  style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 3 Metric Chips Bergaya Modern */}
+                            <div className="grid grid-cols-3 gap-2 text-center text-xs mt-3">
+                              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Total</span>
+                                <span className="font-extrabold text-slate-800 block text-sm mt-0.5 font-mono tabular-nums">{asset.jumlah_total}</span>
+                              </div>
+                              <div className="bg-emerald-50/90 p-2.5 rounded-xl border border-emerald-200 shadow-2xs">
+                                <span className="text-[10px] text-emerald-700 block font-bold uppercase tracking-wider">Tersedia</span>
+                                <span className="font-black text-emerald-700 block text-sm mt-0.5 font-mono tabular-nums">{asset.jumlah_baik}</span>
+                              </div>
+                              <div className={`p-2.5 rounded-xl border shadow-2xs ${asset.jumlah_rusak > 0 ? 'bg-rose-50 border-rose-200 text-rose-700 font-black' : 'bg-white border-slate-200 text-slate-400'}`}>
+                                <span className={`text-[10px] block font-bold uppercase tracking-wider ${asset.jumlah_rusak > 0 ? 'text-rose-600' : 'text-slate-400'}`}>Rusak</span>
+                                <span className="block text-sm mt-0.5 font-mono tabular-nums">{asset.jumlah_rusak}</span>
+                              </div>
+                            </div>
+
+                            {/* Lokasi & Catatan */}
+                            <div className="space-y-1.5 text-xs text-slate-600 font-medium bg-white/70 p-3 rounded-xl border border-slate-200/60 mt-3">
+                              <div className="flex items-center gap-2">
+                                <Database className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate"><strong>Lokasi:</strong> {asset.lokasi_penyimpanan || 'Gudang Kantor RT'}</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                                <span className="line-clamp-2"><strong>Catatan:</strong> {asset.catatan || `Milik warga ${wilayahShort}.`}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Tombol Aksi di Bawah Kartu */}
+                          <div className="pt-3 border-t border-slate-200/70 flex items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditAsset(asset)}
+                                className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 shadow-2xs transition-all cursor-pointer active:scale-95"
+                                title="Edit Data Barang"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenDeleteAssetModal(asset)}
+                                className="p-2 rounded-xl bg-white border border-rose-200 hover:bg-rose-50 text-rose-500 hover:text-rose-700 shadow-2xs transition-all cursor-pointer active:scale-95"
+                                title="Hapus Barang Permanen"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAddLoan(asset)}
+                              disabled={asset.jumlah_baik <= 0}
+                              className={`px-3.5 py-2 rounded-xl font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${theme.btnAction}`}
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>Pinjamkan Aset</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination Footer untuk Tampilan Grid */}
+                {totalAssetPages > 1 && (
+                  <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                    <span>
+                      Menampilkan {paginatedAssets.length > 0 ? (currentAssetPage - 1) * assetItemsPerPage + 1 : 0}-
+                      {Math.min(currentAssetPage * assetItemsPerPage, filteredAssets.length)} dari {filteredAssets.length} data aset
+                    </span>
+
                     <div className="flex items-center gap-1.5">
                       <button
-                        type="button"
-                        onClick={() => handleOpenEditAsset(asset)}
-                        className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                        title="Edit Data Barang"
+                        onClick={() => setCurrentAssetPage((p) => Math.max(p - 1, 1))}
+                        disabled={currentAssetPage === 1}
+                        className="px-3 py-1.5 bg-white rounded-lg shadow-2xs border border-slate-200 font-semibold text-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer hover:bg-slate-50"
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        Sebelumnya
                       </button>
+
+                      {Array.from({ length: totalAssetPages }, (_, i) => i + 1).map((pg) => (
+                        <button
+                          key={pg}
+                          onClick={() => setCurrentAssetPage(pg)}
+                          className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                            currentAssetPage === pg
+                              ? 'bg-slate-900 text-white shadow-2xs'
+                              : 'bg-white text-slate-800 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {pg}
+                        </button>
+                      ))}
+
                       <button
-                        type="button"
-                        onClick={() => handleOpenDeleteAssetModal(asset)}
-                        className="p-1.5 rounded-lg border border-rose-100 hover:bg-rose-50 text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
-                        title="Hapus Barang Permanen"
+                        onClick={() => setCurrentAssetPage((p) => Math.min(p + 1, totalAssetPages))}
+                        disabled={currentAssetPage === totalAssetPages}
+                        className="px-3 py-1.5 bg-white rounded-lg shadow-2xs border border-slate-200 font-semibold text-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer hover:bg-slate-50"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        Selanjutnya
                       </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleOpenAddLoan(asset)}
-                      disabled={asset.jumlah_baik <= 0}
-                      className="px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <UserCheck className="w-3.5 h-3.5" />
-                      <span>Pinjamkan Aset</span>
-                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            )
           )}
         </div>
       )}
@@ -1269,14 +1558,31 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
               )}
             </div>
             
-            <button
-              type="button"
-              onClick={() => handleOpenAddLoan()}
-              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-900 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 shrink-0"
-            >
-              <Plus className="w-4 h-4 text-blue-200" />
-              <span>Buat Log Peminjaman Baru</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleExportPDF}
+                disabled={isExportingPDF || loans.length === 0}
+                className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-xs sm:text-sm rounded-xl shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
+                title="Cetak Log Peminjaman Aset ke Dokumen PDF"
+              >
+                {isExportingPDF ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+                ) : (
+                  <Printer className="w-4 h-4 text-rose-600" />
+                )}
+                <span>Cetak PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleOpenAddLoan()}
+                className="px-4 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-slate-900 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 shrink-0"
+              >
+                <Plus className="w-4 h-4 text-blue-200" />
+                <span>Buat Log Peminjaman Baru</span>
+              </button>
+            </div>
           </div>
 
           {/* Log Table of Loans - BARIS RAPI KE KANAN */}

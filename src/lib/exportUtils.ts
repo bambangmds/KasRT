@@ -920,3 +920,302 @@ export async function exportDataWargaPDF(
   doc.save(options.filename || defaultFilename);
 }
 
+/**
+ * Ekspor data inventaris & aset RT ke format PDF Laporan Resmi
+ */
+export async function exportInventarisPDF(
+  assets: InventarisItem[],
+  options: {
+    sekretariat?: {
+      rt?: string;
+      rw?: string;
+      kelurahan?: string;
+      kecamatan?: string;
+      alamat?: string;
+      kota_kabupaten?: string;
+      provinsi?: string;
+      nama_ketua_rt?: string;
+    };
+    pengguna?: SupabasePengurusRow[];
+    filterLabel?: string;
+    filename?: string;
+    activeSubTab?: 'daftar-aset' | 'log-peminjaman';
+    loans?: any[];
+  } = {}
+): Promise<void> {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  const rtStr = options.sekretariat?.rt || '002';
+  const rwStr = options.sekretariat?.rw || '09';
+  const kelStr = (options.sekretariat?.kelurahan || 'Pondok Rajeg').toUpperCase();
+  const kecStr = (options.sekretariat?.kecamatan || 'Cibinong').toUpperCase();
+  const alamatStr = options.sekretariat?.alamat || `RT.${rtStr} RW.${rwStr}, Kel. ${options.sekretariat?.kelurahan || 'Pondok Rajeg'}`;
+
+  // Ambil data pengguna dari database/options jika belum ada
+  let penggunaList: SupabasePengurusRow[] = options.pengguna || [];
+  if (!penggunaList || penggunaList.length === 0) {
+    try {
+      penggunaList = await fetchAllPengurusFromSupabase();
+    } catch {}
+  }
+
+  // Cari data Ketua RT atau Seksi Sarana & Prasarana
+  const saranaUser = penggunaList.find((p) =>
+    p.jabatan && (p.jabatan.toLowerCase().includes('sarana') || p.jabatan.toLowerCase().includes('prasarana'))
+  );
+  const ketuaUser = penggunaList.find((p) => 
+    p.jabatan && p.jabatan.toLowerCase().includes('ketua')
+  ) || penggunaList.find((p) => p.level_akses === 'Admin') || penggunaList[0];
+
+  const ketuaNama = ketuaUser?.nama || options.sekretariat?.nama_ketua_rt || 'Bpk. Ketua RT';
+  const ketuaJabatan = ketuaUser?.jabatan || `Ketua RT.${rtStr} RW.${rwStr}`;
+  const saranaNama = saranaUser?.nama || 'Seksi Sarana & Prasarana';
+
+  // Logo RT
+  let logoDataUrl: string | null = null;
+  try {
+    logoDataUrl = await getRtLogoBase64();
+  } catch (e) {
+    console.warn('[PDF Export] Logo load error', e);
+  }
+
+  const startX = logoDataUrl ? 33 : 14;
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', 14, 11, 16, 16);
+  }
+
+  // Kop Surat
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`PENGURUS RUKUN TETANGGA ${rtStr} RUKUN WARGA ${rwStr}`, startX, 15);
+
+  doc.setFontSize(10);
+  doc.text(`KELURAHAN ${kelStr}${kecStr ? `, KECAMATAN ${kecStr}` : ''}`, startX, 21);
+
+  doc.setFontSize(8.5);
+  doc.setFont('Helvetica', 'normal');
+  doc.text(`Alamat Sekretariat: ${alamatStr}`, startX, 26);
+
+  // Garis Pembatas Kop Surat
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(0.8);
+  doc.line(14, 29, 283, 29);
+  doc.setLineWidth(0.2);
+  doc.line(14, 30, 283, 30);
+
+  const isLoanTab = options.activeSubTab === 'log-peminjaman';
+  const tglCetak = new Date().toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const filterLabel = options.filterLabel || (isLoanTab ? 'Semua Catatan Peminjaman' : 'Semua Aset Inventaris');
+
+  if (isLoanTab) {
+    const loanList = options.loans || [];
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(`LAPORAN LOG PEMINJAMAN ASET RT.${rtStr} RW.${rwStr}`, 14, 37);
+
+    doc.setFontSize(8.5);
+    doc.setFont('Helvetica', 'normal');
+    const dipinjamCount = loanList.filter((l: any) => l.status === 'Dipinjam').length;
+    const kembaliCount = loanList.filter((l: any) => l.status === 'Kembali').length;
+    doc.text(
+      `Cakupan: ${filterLabel} | Total: ${loanList.length} Catatan (${dipinjamCount} Sedang Dipinjam, ${kembaliCount} Selesai) | Tanggal Cetak: ${tglCetak}`,
+      14,
+      42
+    );
+
+    const headers = [
+      ['NO', 'NAMA BARANG', 'WARGA PEMINJAM', 'NO HP / WA', 'TGL PINJAM', 'TGL KEMBALI', 'JUMLAH', 'KEPERLUAN / CATATAN', 'STATUS']
+    ];
+
+    const body = loanList.map((l: any, idx: number) => [
+      idx + 1,
+      l.barang_nama || 'Barang RT',
+      l.warga_nama || 'Warga RT',
+      l.warga_hp || '-',
+      l.tanggal_pinjam || '-',
+      l.tanggal_kembali || 'Masih Dipinjam',
+      `${l.jumlah_pinjam || 1} Unit`,
+      l.keperluan || l.catatan || '-',
+      l.status === 'Kembali' ? 'Selesai / Kembali' : 'Dipinjam'
+    ]);
+
+    autoTable(doc, {
+      startY: 46,
+      head: headers,
+      body: body,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8.5,
+        halign: 'center',
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [30, 41, 59],
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 40, fontStyle: 'bold' },
+        2: { cellWidth: 38 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 24, halign: 'center' },
+        5: { cellWidth: 26, halign: 'center' },
+        6: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+        7: { cellWidth: 55 },
+        8: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
+      },
+      margin: { left: 14, right: 14 },
+    });
+  } else {
+    // DAFTAR INVENTARIS & ASET
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(`LAPORAN DAFTAR INVENTARIS & ASET RT.${rtStr} RW.${rwStr}`, 14, 37);
+
+    doc.setFontSize(8.5);
+    doc.setFont('Helvetica', 'normal');
+    
+    const totalUnit = assets.reduce((sum, a) => sum + (Number(a.jumlah_total) || 0), 0);
+    const totalBaik = assets.reduce((sum, a) => sum + (Number(a.jumlah_baik) || 0), 0);
+    const totalRusak = assets.reduce((sum, a) => sum + (Number(a.jumlah_rusak) || 0), 0);
+
+    doc.text(
+      `Cakupan: ${filterLabel} | Total: ${assets.length} Jenis Barang (${totalUnit} Unit: ${totalBaik} Siap Digunakan, ${totalRusak} Rusak) | Tanggal Cetak: ${tglCetak}`,
+      14,
+      42
+    );
+
+    const headers = [
+      ['NO', 'NAMA BARANG / PERALATAN', 'KONDISI', 'TOTAL UNIT', 'TERSEDIA (BAIK)', 'RUSAK', 'LOKASI PENYIMPANAN', 'KETERANGAN / SPESIFIKASI']
+    ];
+
+    const body: any[] = assets.map((a, idx) => [
+      idx + 1,
+      a.nama_barang || '-',
+      a.kondisi || 'Baik',
+      `${a.jumlah_total || 0} Unit`,
+      `${a.jumlah_baik || 0} Unit`,
+      `${a.jumlah_rusak || 0} Unit`,
+      a.lokasi_penyimpanan || 'Gudang RT',
+      a.catatan || '-'
+    ]);
+
+    // Baris total rekap di baris terakhir tabel
+    body.push([
+      '',
+      'TOTAL REKAPITULASI INVENTARIS',
+      `${assets.length} Jenis`,
+      `${totalUnit} Unit`,
+      `${totalBaik} Unit`,
+      `${totalRusak} Unit`,
+      '-',
+      'Dokumen Resmi Aset RT'
+    ]);
+
+    autoTable(doc, {
+      startY: 46,
+      head: headers,
+      body: body,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8.5,
+        halign: 'center',
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [30, 41, 59],
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 50, fontStyle: 'bold' },
+        2: { cellWidth: 26, halign: 'center' },
+        3: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+        4: { cellWidth: 28, halign: 'center', fontStyle: 'bold', textColor: [5, 150, 105] },
+        5: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: [225, 29, 72] },
+        6: { cellWidth: 45 },
+        7: { cellWidth: 64 },
+      },
+      didParseCell: function(data) {
+        if (data.row.index === body.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+          data.cell.styles.textColor = [15, 23, 42];
+        }
+      },
+      margin: { left: 14, right: 14 },
+    });
+  }
+
+  // Tanda Tangan Resmi
+  const finalY = (doc as any).lastAutoTable?.finalY || 150;
+  const signY = finalY + 8 > 165 ? 165 : finalY + 8;
+  const locationName = options.sekretariat?.kelurahan || options.sekretariat?.kota_kabupaten || 'Pondok Rajeg';
+
+  if (signY < 185) {
+    doc.setFontSize(8.5);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+
+    // Kiri: Petugas / Seksi Sarana & Prasarana
+    doc.text(`${locationName}, ${tglCetak}`, 30, signY);
+    doc.text(`Pengelola Aset / Seksi Sarana,`, 30, signY + 5);
+    doc.setFont('Helvetica', 'bold');
+    doc.text(`${saranaNama}`, 30, signY + 20);
+    doc.setDrawColor(30, 41, 59);
+    doc.setLineWidth(0.4);
+    doc.line(30, signY + 23, 85, signY + 23);
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`Seksi Sarana & Prasarana RT.${rtStr} RW.${rwStr}`, 30, signY + 28);
+
+    // Kanan: Mengetahui Ketua RT
+    doc.setFontSize(8.5);
+    doc.text(`Mengetahui,`, 220, signY + 5);
+    doc.setFont('Helvetica', 'bold');
+    doc.text(`${ketuaNama}`, 220, signY + 20);
+    doc.setDrawColor(30, 41, 59);
+    doc.setLineWidth(0.4);
+    doc.line(220, signY + 23, 275, signY + 23);
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(`${ketuaJabatan}`, 220, signY + 28);
+  }
+
+  // Footer Nomor Halaman
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('Helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `Halaman ${i} dari ${pageCount} — Dokumen Resmi Inventaris & Aset RT.${rtStr} RW.${rwStr}`,
+      14,
+      202
+    );
+  }
+
+  const defaultFilename = isLoanTab 
+    ? `Laporan_Peminjaman_Aset_RT${rtStr}_RW${rwStr}_${new Date().toISOString().split('T')[0]}.pdf`
+    : `Laporan_Inventaris_Aset_RT${rtStr}_RW${rwStr}_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(options.filename || defaultFilename);
+}
+
+

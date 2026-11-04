@@ -546,6 +546,20 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
       - Pada `handleQuickConnect` di halaman utama juga diterapkan verifikasi `sekRes.isDbEmpty` yang sama persis.
       - Pada `SekretariatSetupScreen`, ditambahkan tombol **"Pengaturan Supabase"** di header atas dan modal konfigurasi Supabase terhubung agar pengurus tetap dapat mengecek status koneksi sewaktu-waktu.
 
+66. **Fitur Cetak ke PDF & Pewarnaan Modern Tab Kartu Grid pada Menu Inventaris & Aset RT (`InventarisRTView.tsx` & `exportUtils.ts`)**:
+    - **Fitur Cetak Dokumen PDF Resmi (`exportInventarisPDF`)**:
+      - Menyediakan tombol **"Cetak ke PDF"** di header bilah atas Inventaris RT serta tombol **"Cetak PDF"** di toolbar aksi Daftar Aset maupun Log Peminjaman.
+      - Menghasilkan dokumen PDF berstandar arsip resmi RT (format A4 landscape) lengkap dengan Kop Surat resmi Rukun Tetangga (RT), logo RT (`rt_logo.svg`), alamat sekretariat, garis batas ganda, dan tanggal cetak Indonesia.
+      - Tabel rekapitulasi inventaris tertata rapi: No, Nama Barang / Peralatan, Kondisi, Total Unit, Tersedia (Baik), Rusak, Lokasi Penyimpanan, dan Keterangan / Spesifikasi, lengkap dengan baris total rekapitulasi di baris penutup tabel.
+      - Jika dicetak dari tab Log Peminjaman, menghasilkan tabel resmi peminjaman aset (warga peminjam, kontak WA/HP, tgl pinjam & kembali, status, keperluan).
+      - Dilengkapi kolom tanda tangan resmi dua sisi: Seksi Sarana & Prasarana / Pengelola Aset (kiri) dan Ketua RT (kanan), serta penomoran halaman otomatis.
+    - **Pewarnaan & Desain Modern Tab Kartu Grid**:
+      - Menggantikan tampilan kartu putih polos sebelumnya dengan **6 skema tema warna modern** yang harmonis (*Electric Indigo*, *Emerald Mint*, *Royal Violet*, *Sunset Amber*, *Aqua Marine*, *Coral Rose*).
+      - Setiap kartu memiliki garis aksen warna gradasi di bagian atas (*top glowing strip*), latar belakang halus bertingkat, border berbayang lembut (*hover glow*), serta ikon kontainer duotone bergradasi.
+      - Visual ketersediaan stok interaktif berupa meter bar persentase unit siap pakai (`%`) dan 3 kartu metrik mini (Total Unit, Tersedia, dan Rusak).
+      - Tag lokasi berikon `Database`, catatan spesifikasi berikon `Info`, serta tombol aksi *"Pinjamkan Aset"* yang secara dinamis mengikuti tema kartu.
+      - Penambahan kontrol navigasi halaman (*pagination*) pada tampilan Grid sehingga pengguna dapat menelusuri data aset secara teratur.
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
