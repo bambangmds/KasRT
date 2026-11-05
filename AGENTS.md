@@ -560,6 +560,29 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
       - Tag lokasi berikon `Database`, catatan spesifikasi berikon `Info`, serta tombol aksi *"Pinjamkan Aset"* yang secara dinamis mengikuti tema kartu.
       - Penambahan kontrol navigasi halaman (*pagination*) pada tampilan Grid sehingga pengguna dapat menelusuri data aset secara teratur.
 
+67. **Penyempurnaan Visual & Pembersihan Teks Tab Pos Kategori Kas (`KelolaKategoriView.tsx`)**:
+    - **Pewarnaan Ikon Tindakan Update & Hapus**: Tombol Update/Koreksi kini menggunakan ikon `Pencil` biru berlatar `bg-blue-50 text-blue-600 border-blue-200` dengan efek hover biru pekat (`hover:bg-blue-600 hover:text-white`), sedangkan tombol Hapus menggunakan ikon `Trash2` merah berlatar `bg-rose-50 text-rose-600 border-rose-200` (atau `bg-amber-50 text-amber-600` dengan ikon `Lock` saat kategori terkunci/terpakai).
+    - **Pembersihan Teks (Y) dan (N)**: Menghapus label `(Y)` dan `(N)` di belakang teks status iuran, sehingga badge kini tampil bersih dan elegan hanya bertuliskan **"Wajib"** (warna amber) atau **"Sukarela"** (warna slate).
+    - **Aksen Warna di Sebelah Nomor Urut Setiap Baris**: Menambahkan garis aksen vertikal bergradasi rounded (`w-1.5 h-5`) di sebelah nomor urut (warna hijau zamrud untuk Kas Masuk dan merah muda untuk Kas Keluar) serta membingkai nomor urut dengan badge angka berwarna yang rapi.
+    - **Frame Abu-abu untuk Filter & Pencarian**: Panel pembungkus tombol filter (Semua, Kas Masuk, Kas Keluar) dan kolom pencarian *Cari nama pos kategori...* kini menggunakan latar belakang warna abu-abu elegan (`bg-slate-200 border-slate-300 shadow-xs`) dengan kartu input pencarian putih kontras tinggi.
+
+68. **Penyelarasan Desain Tab Pos Kategori Kas Sesuai Arahan Pengurus**:
+    - **Ikon Berwarna Solid untuk Update & Delete**:
+      - Tombol Update (Edit): Menggunakan tombol biru pekat (`bg-blue-600 text-white hover:bg-blue-700 shadow-2xs`) dengan ikon `Pencil` putih bersih.
+      - Tombol Delete (Hapus): Menggunakan tombol merah pekat (`bg-rose-600 text-white hover:bg-rose-700 shadow-2xs`) dengan ikon `Trash2` putih, dan tombol kuning emas (`bg-amber-500 text-white hover:bg-amber-600`) dengan ikon `Lock` saat kategori masih dipakai transaksi.
+    - **Penghapusan Teks "Sukarela" di Sebelah Kiri/Nama Pos Kategori**:
+      - Badge teks "Sukarela" yang sebelumnya menempel di kolom Pos Kategori kini telah dihilangkan sepenuhnya. Kolom Pos Kategori kini bersih menampilkan nama pos kategori secara tegas (hanya mempertahankan penanda "Wajib" jika kategori memang berstatus wajib).
+    - **Pembersihan Nomor Urut**:
+      - Menghapus garis strip aksen warna yang sebelumnya berada di samping nomor urut. Kolom No kini kembali tampil minimalis, rapi, dan bersih dengan font mono (`text-slate-500 font-mono text-xs font-semibold`).
+    - **Memperkecil / Mempersempit Tinggi Frame Filter & Pencarian**:
+      - Frame abu-abu (`bg-slate-200 border-slate-300`) dibuat jauh lebih ramping dan hemat ruang dengan mengubah padding dari `p-4 sm:p-5` menjadi `px-3.5 py-2 sm:py-2.5`.
+      - Tombol pill filter dan kotak pencarian disesuaikan ukurannya (`py-1` dan `py-1.5`) agar tampilan lebih ringkas, padat, dan proporsional.
+69. **Pembaruan Warna Latar Pencarian & Penajaman Nomor Baris Tab Pos Kategori Kas (`KelolaKategoriView.tsx`)**:
+    - **Warna Dasar Hitam Modern & Teks Putih Tajam pada Kotak Pencarian**: Kolom isian teks pencarian (*"Cari nama pos kategori..."*) kini menggunakan latar belakang warna dasar hitam modern (`bg-slate-900 border-slate-800 shadow-sm`), teks ketikan berwarna putih tajam (`text-white font-semibold`), placeholder abu-abu netral (`placeholder:text-slate-400`), dan ring fokus zamrud (`focus:ring-emerald-400`).
+    - **Pewarnaan Nomor Baris (Row Number) Lebih Tajam & Jelas**: Setiap nomor urut pada baris tabel kini dibingkai dengan badge warna solid yang kontras tinggi dan tegas:
+      - **Pos Kas Masuk**: Badge hijau zamrud solid pekat (`bg-emerald-600 text-white font-black border border-emerald-700 shadow-xs`).
+      - **Pos Kas Keluar**: Badge merah mawar solid pekat (`bg-rose-600 text-white font-black border border-rose-700 shadow-xs`).
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
