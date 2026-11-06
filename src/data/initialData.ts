@@ -46,6 +46,95 @@ export const SUSUNAN_PENGURUS_RT = [
   { no: 10, role: 'Seksi Pemberdayaan Perempuan', label: 'Seksi Pemberdayaan Perempuan', deskripsi: 'Kegiatan PKK, posyandu & pemberdayaan wanita di lingkungan RT' },
 ];
 
+/**
+ * Memeriksa apakah jabatan adalah 'Warga' (bukan Pengurus, bukan Seksi)
+ */
+export function isWargaJabatan(jabatan?: string): boolean {
+  if (!jabatan) return true;
+  const j = jabatan.toLowerCase().trim();
+  return j === 'warga' || j === 'warga rt' || j === 'penduduk' || j === 'anggota warga';
+}
+
+/**
+ * Bobot urutan jabatan resmi pengurus RT:
+ * 1. Ketua
+ * 2. Wakil Ketua
+ * 3. Sekretaris
+ * 4. Bendahara
+ * 5. Seksi-Seksi (Keamanan, Sarpras, Humas, Kerohanian, Pemuda/Olahraga, Pemberdayaan Perempuan, dst.)
+ */
+export function getJabatanRank(jabatan?: string): number {
+  if (!jabatan) return 999;
+  const j = jabatan.toLowerCase().trim();
+
+  // 1. Ketua (bukan wakil)
+  if (j.includes('ketua') && !j.includes('wakil')) {
+    return 1;
+  }
+
+  // 2. Wakil Ketua
+  if (j.includes('wakil ketua') || (j.includes('wakil') && j.includes('ketua'))) {
+    return 2;
+  }
+
+  // 3. Sekretaris
+  if (j.includes('sekretaris')) {
+    if (j.includes('wakil')) return 3.5;
+    return 3;
+  }
+
+  // 4. Bendahara
+  if (j.includes('bendahara')) {
+    if (j.includes('wakil')) return 4.5;
+    return 4;
+  }
+
+  // 5. Seksi-Seksi RT (Keamanan, Sarpras, Humas, Kerohanian, Pemuda/Olahraga, Pemberdayaan Perempuan, Kebersihan, Sosial, dll.)
+  if (j.includes('keamanan') || j.includes('kamling') || j.includes('ronda') || j.includes('trantib')) {
+    return 10;
+  }
+  if (j.includes('sarana') || j.includes('prasarana') || j.includes('fasilitas') || j.includes('aset') || j.includes('logistik')) {
+    return 11;
+  }
+  if (j.includes('humas') || j.includes('informasi') || j.includes('komunikasi') || j.includes('publikasi')) {
+    return 12;
+  }
+  if (j.includes('kerohanian') || j.includes('agama') || j.includes('ibadah') || j.includes('rohani')) {
+    return 13;
+  }
+  if (j.includes('pemuda') || j.includes('olahraga') || j.includes('karang taruna')) {
+    return 14;
+  }
+  if (j.includes('perempuan') || j.includes('wanita') || j.includes('pkk') || j.includes('posyandu')) {
+    return 15;
+  }
+  if (j.includes('kebersihan') || j.includes('lingkungan')) {
+    return 16;
+  }
+  if (j.includes('sosial') || j.includes('kesejahteraan') || j.includes('kematian')) {
+    return 17;
+  }
+  if (j.includes('seksi') || j.includes('koordinator') || j.includes('bidang') || j.includes('divisi')) {
+    return 20;
+  }
+
+  // Pengurus kustom lainnya
+  return 30;
+}
+
+/**
+ * Mengurutkan pengurus sesuai hierarki jabatan RT:
+ * Ketua -> Wakil Ketua -> Sekretaris -> Bendahara -> Seksi-Seksi -> Nama Abjad
+ */
+export function sortPengurusByJabatan<T extends { jabatan?: string; nama?: string }>(a: T, b: T): number {
+  const rankA = getJabatanRank(a.jabatan);
+  const rankB = getJabatanRank(b.jabatan);
+  if (rankA !== rankB) {
+    return rankA - rankB;
+  }
+  return (a.nama || '').localeCompare(b.nama || '', 'id');
+}
+
 export function formatRupiah(num: number): string {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',

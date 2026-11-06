@@ -1526,6 +1526,46 @@ CREATE POLICY "Akses Publik Kategori"
   WITH CHECK (true);
 `;
 
+// Skema SQL khusus untuk tabel pengguna (Pengurus Inti & Seksi-Seksi RT)
+export const PENGGUNA_SQL_SCHEMA = `-- =========================================================================
+-- SKEMA TABEL PENGGUNA (PENGURUS INTI, SEKSI-SEKSI & AKUN PENGGUNA RT)
+-- Jalankan query berikut di Supabase SQL Editor:
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS pengguna (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nama TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  jabatan TEXT NOT NULL,
+  level_akses TEXT NOT NULL DEFAULT 'User' CHECK (level_akses IN ('Admin', 'User')),
+  no_hp TEXT,
+  no_kk VARCHAR(16),
+  warga_id UUID,
+  nik VARCHAR(16),
+  alamat_domisili TEXT,
+  foto_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Penyesuaian kolom jika tabel sudah pernah dibuat sebelumnya
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS no_kk VARCHAR(16);
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS warga_id UUID;
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS nik VARCHAR(16);
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS alamat_domisili TEXT;
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS no_hp TEXT;
+ALTER TABLE pengguna ADD COLUMN IF NOT EXISTS foto_url TEXT;
+
+-- Konfigurasi Row Level Security (RLS) Akses Publik Pengurus
+ALTER TABLE pengguna ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Akses Publik Pengguna" ON pengguna;
+CREATE POLICY "Akses Publik Pengguna" 
+  ON pengguna 
+  FOR ALL 
+  USING (true) 
+  WITH CHECK (true);
+`;
+
 let detectedCategoryTable: 'kategori' | 'kategori_kas' = 'kategori';
 
 export const getCategoryTableName = (): 'kategori' | 'kategori_kas' => {
@@ -3571,6 +3611,298 @@ export const fetchAllPengurusFromSupabase = async (): Promise<SupabasePengurusRo
 };
 
 export const fetchAllPenggunaFromSupabase = fetchAllPengurusFromSupabase;
+
+/**
+ * Menambahkan pengguna / pengurus baru ke tabel 'pengguna' di Supabase
+ */
+export const createPenggunaInSupabase = async (
+  userData: Partial<SupabasePengurusRow>
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  const cleanEmail = (userData.email || '').toLowerCase().trim();
+  const cleanNama = (userData.nama || '').trim();
+  const cleanJabatan = (userData.jabatan || 'Seksi RT').trim();
+  const cleanLevel = (userData.level_akses || (
+    cleanJabatan.toLowerCase().includes('ketua') || 
+    cleanJabatan.toLowerCase().includes('sekretaris') || 
+    cleanJabatan.toLowerCase().includes('bendahara') 
+      ? 'Admin' 
+      : 'User'
+  )) as 'Admin' | 'User';
+  const plainPassword = userData.password || 'admin123';
+
+  if (!cleanNama) return { success: false, error: 'Nama pengurus tidak boleh kosong.' };
+  if (!cleanEmail) return { success: false, error: 'Email pengurus tidak boleh kosong.' };
+
+  // 1. Simpan ke local cache pengguna
+  const newId = userData.id && isUuid(userData.id) ? userData.id : crypto.randomUUID();
+  try {
+    const localUsers = getLocalRegisteredUsers();
+    const existingIdx = localUsers.findIndex(u => u.profile.email.toLowerCase() === cleanEmail);
+    const userProfile: UserProfile = {
+      id: newId,
+      nama: cleanNama,
+      email: cleanEmail,
+      role: cleanJabatan as PengurusRole,
+      levelAkses: cleanLevel,
+      no_hp: userData.no_hp || undefined,
+      wargaId: userData.warga_id && isUuid(userData.warga_id) ? userData.warga_id : undefined,
+      no_kk: userData.no_kk || undefined,
+      nik: userData.nik || undefined,
+      alamat_domisili: userData.alamat_domisili || undefined,
+      fotoUrl: userData.foto_url || undefined,
+    };
+    const cred = { profile: userProfile, password: plainPassword };
+    if (existingIdx >= 0) {
+      localUsers[existingIdx] = cred;
+    } else {
+      localUsers.push(cred);
+    }
+    localStorage.setItem(STORAGE_KEY_REGISTERED_USERS, JSON.stringify(localUsers));
+  } catch (e) {
+    console.warn('[createPenggunaInSupabase local cache]', e);
+  }
+
+  // 2. Simpan ke Supabase jika client aktif
+  const client = getSupabase();
+  if (!client) {
+    return { success: true };
+  }
+
+  try {
+    const targetTables = ['pengguna', 'pengurus', 'pengurus_rt', 'users'];
+    let lastError: any = null;
+
+    for (const tbl of targetTables) {
+      try {
+        const payload: Record<string, any> = {
+          nama: cleanNama,
+          email: cleanEmail,
+          password: plainPassword,
+          jabatan: cleanJabatan,
+          level_akses: cleanLevel,
+        };
+        if (userData.id && isUuid(userData.id)) payload.id = userData.id;
+        if (userData.no_hp) payload.no_hp = userData.no_hp.trim();
+        if (userData.warga_id && isUuid(userData.warga_id)) payload.warga_id = userData.warga_id;
+        if (userData.no_kk) payload.no_kk = userData.no_kk.trim();
+        if (userData.nik) payload.nik = userData.nik.trim();
+        if (userData.alamat_domisili) payload.alamat_domisili = userData.alamat_domisili.trim();
+        if (userData.foto_url) payload.foto_url = userData.foto_url.trim();
+
+        const { data, error } = await client.from(tbl).insert([payload]).select('*');
+        if (!error && data && data.length > 0) {
+          return { success: true, data: data[0] };
+        }
+
+        if (error) {
+          if (error.code === '42P01') {
+            lastError = error;
+            continue;
+          }
+          if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique')) {
+            return { success: false, error: `Email "${cleanEmail}" sudah terdaftar pada pengguna lain. Gunakan email yang berbeda.` };
+          }
+          // Retry tanpa ID jika default gen_random_uuid()
+          if (payload.id) {
+            delete payload.id;
+            const retryNoId = await client.from(tbl).insert([payload]).select('*');
+            if (!retryNoId.error && retryNoId.data && retryNoId.data.length > 0) {
+              return { success: true, data: retryNoId.data[0] };
+            }
+          }
+          lastError = error;
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    if (lastError) {
+      if (lastError.code === '42P01') {
+        return {
+          success: false,
+          error: 'Tabel "pengguna" belum dibuat di database Supabase. Silakan buka tombol "Skema SQL Pengguna" dan jalankan script di Supabase SQL Editor.'
+        };
+      }
+      return { success: false, error: lastError.message || 'Gagal menambahkan pengguna ke Supabase.' };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Terjadi kesalahan sistem saat menambahkan pengguna.' };
+  }
+};
+
+/**
+ * Memperbarui data pengguna / pengurus di tabel 'pengguna' Supabase
+ */
+export const updatePenggunaInSupabase = async (
+  id: string,
+  updates: Partial<SupabasePengurusRow>
+): Promise<{ success: boolean; error?: string }> => {
+  const cleanEmail = (updates.email || '').toLowerCase().trim();
+  const cleanNama = (updates.nama || '').trim();
+
+  // 1. Update local storage cache
+  try {
+    const localUsers = getLocalRegisteredUsers();
+    const idx = localUsers.findIndex(u => (id && u.profile.id === id) || (cleanEmail && u.profile.email.toLowerCase() === cleanEmail));
+    if (idx >= 0) {
+      const u = localUsers[idx];
+      if (cleanNama) u.profile.nama = cleanNama;
+      if (cleanEmail) u.profile.email = cleanEmail;
+      if (updates.jabatan) u.profile.role = updates.jabatan as PengurusRole;
+      if (updates.level_akses) u.profile.levelAkses = updates.level_akses;
+      if (updates.no_hp !== undefined) u.profile.no_hp = updates.no_hp || undefined;
+      if (updates.warga_id !== undefined) u.profile.wargaId = updates.warga_id || undefined;
+      if (updates.no_kk !== undefined) u.profile.no_kk = updates.no_kk || undefined;
+      if (updates.nik !== undefined) u.profile.nik = updates.nik || undefined;
+      if (updates.alamat_domisili !== undefined) u.profile.alamat_domisili = updates.alamat_domisili || undefined;
+      if (updates.foto_url !== undefined) u.profile.fotoUrl = updates.foto_url || undefined;
+      if (updates.password && updates.password.trim() !== '') u.password = updates.password;
+      localUsers[idx] = u;
+      localStorage.setItem(STORAGE_KEY_REGISTERED_USERS, JSON.stringify(localUsers));
+    }
+
+    // Jika user yang diupdate adalah user yang sedang aktif login, sinkronkan juga session-nya
+    const rawActive = sessionStorage.getItem('kas_rt_active_user');
+    if (rawActive) {
+      const activeUser = JSON.parse(rawActive) as UserProfile;
+      if (activeUser.id === id || (cleanEmail && activeUser.email.toLowerCase() === cleanEmail)) {
+        if (cleanNama) activeUser.nama = cleanNama;
+        if (cleanEmail) activeUser.email = cleanEmail;
+        if (updates.jabatan) activeUser.role = updates.jabatan as PengurusRole;
+        if (updates.level_akses) activeUser.levelAkses = updates.level_akses;
+        if (updates.no_hp !== undefined) activeUser.no_hp = updates.no_hp || undefined;
+        if (updates.foto_url !== undefined) activeUser.fotoUrl = updates.foto_url || undefined;
+        sessionStorage.setItem('kas_rt_active_user', JSON.stringify(activeUser));
+      }
+    }
+  } catch (e) {
+    console.warn('[updatePenggunaInSupabase local cache]', e);
+  }
+
+  // 2. Update di Supabase jika client aktif
+  const client = getSupabase();
+  if (!client) {
+    return { success: true };
+  }
+
+  try {
+    const payload: Record<string, any> = {};
+    if (cleanNama) payload.nama = cleanNama;
+    if (cleanEmail) payload.email = cleanEmail;
+    if (updates.jabatan) payload.jabatan = updates.jabatan;
+    if (updates.level_akses) payload.level_akses = updates.level_akses;
+    if (updates.password && updates.password.trim() !== '') payload.password = updates.password;
+    if (updates.no_hp !== undefined) payload.no_hp = updates.no_hp ? updates.no_hp.trim() : null;
+    if (updates.warga_id !== undefined) payload.warga_id = updates.warga_id && isUuid(updates.warga_id) ? updates.warga_id : null;
+    if (updates.no_kk !== undefined) payload.no_kk = updates.no_kk ? updates.no_kk.trim() : null;
+    if (updates.nik !== undefined) payload.nik = updates.nik ? updates.nik.trim() : null;
+    if (updates.alamat_domisili !== undefined) payload.alamat_domisili = updates.alamat_domisili ? updates.alamat_domisili.trim() : null;
+    if (updates.foto_url !== undefined) payload.foto_url = updates.foto_url ? updates.foto_url.trim() : null;
+
+    const tables = ['pengguna', 'pengurus', 'pengurus_rt', 'users'];
+    let updated = false;
+    let lastError: any = null;
+
+    for (const tbl of tables) {
+      try {
+        if (id && isUuid(id)) {
+          const { error } = await client.from(tbl).update(payload).eq('id', id);
+          if (!error) {
+            updated = true;
+            break;
+          }
+          lastError = error;
+        }
+        if (cleanEmail) {
+          const { error } = await client.from(tbl).update(payload).ilike('email', cleanEmail);
+          if (!error) {
+            updated = true;
+            break;
+          }
+          lastError = error;
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    if (!updated && lastError) {
+      return { success: false, error: lastError.message || 'Gagal memperbarui data pengguna di Supabase' };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Terjadi kesalahan sistem saat memperbarui pengguna' };
+  }
+};
+
+/**
+ * Menghapus satu pengguna / pengurus dari tabel 'pengguna' di Supabase & local storage
+ */
+export const deletePenggunaFromSupabase = async (
+  id: string,
+  email?: string
+): Promise<{ success: boolean; error?: string }> => {
+  // 1. Hapus dari local storage
+  try {
+    const localUsers = getLocalRegisteredUsers();
+    const filtered = localUsers.filter(u => {
+      if (id && u.profile.id === id) return false;
+      if (email && u.profile.email.toLowerCase() === email.trim().toLowerCase()) return false;
+      return true;
+    });
+    localStorage.setItem(STORAGE_KEY_REGISTERED_USERS, JSON.stringify(filtered));
+  } catch (err) {
+    console.warn('[deletePenggunaFromSupabase local]', err);
+  }
+
+  // 2. Hapus dari Supabase jika client aktif
+  const client = getSupabase();
+  if (!client) {
+    return { success: true };
+  }
+
+  try {
+    const tables = ['pengguna', 'pengurus', 'pengurus_rt', 'users'];
+    let lastError: any = null;
+    let deleted = false;
+
+    for (const tbl of tables) {
+      try {
+        if (id && isUuid(id)) {
+          const { error } = await client.from(tbl).delete().eq('id', id);
+          if (!error) {
+            deleted = true;
+            break;
+          } else {
+            lastError = error;
+          }
+        }
+        if (email) {
+          const { error } = await client.from(tbl).delete().ilike('email', email.trim().toLowerCase());
+          if (!error) {
+            deleted = true;
+            break;
+          } else {
+            lastError = error;
+          }
+        }
+      } catch (e: any) {
+        lastError = e;
+      }
+    }
+
+    if (!deleted && lastError) {
+      return { success: false, error: lastError.message || 'Gagal menghapus pengguna dari Supabase' };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Terjadi kesalahan sistem saat menghapus data pengguna' };
+  }
+};
 
 /**
  * Helper untuk mengambil data warga dari local storage

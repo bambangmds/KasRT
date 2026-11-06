@@ -151,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'kelola-kategori' as ActiveTab,
       label: 'Kelola Data Warga & Kategori',
-      sublabel: 'Master penduduk & pos kas',
+      sublabel: 'Warga, pengurus & pos kas',
       icon: Users,
     },
     {

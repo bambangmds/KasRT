@@ -24,7 +24,8 @@ import {
   Search,
   Users,
   Home,
-  FileText
+  FileText,
+  Info
 } from 'lucide-react';
 import { AppLogo } from './AppLogo';
 import { UserProfile, PengurusRole, UserLevel, SupabaseConnectionStatus, DataWargaItem } from '../types';
@@ -162,6 +163,11 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
     role === 'Wakil Ketua RT' ||
     role === 'Sekretaris' ||
     role === 'Bendahara';
+
+  // Ketentuan: Yang berhak menjadi Admin hanya pengurus inti, selainnya hanya bisa menjadi User
+  useEffect(() => {
+    setLevelAkses(isPengurusInti ? 'Admin' : 'User');
+  }, [isPengurusInti]);
 
   // Helper untuk memeriksa apakah suatu jabatan sudah terisi di tabel pengurus
   const getOccupiedInfo = (targetRole: string): { nama: string; email?: string } | undefined => {
@@ -391,13 +397,16 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
         alamat_domisili: selectedCitizen.alamat_domisili,
       } : undefined;
 
-      const res = await registerPengurus(email, password, nama, role, levelAkses, noHp.trim() || undefined, citizenData);
+      // Ketentuan: Yang berhak menjadi Admin hanya pengurus inti, sedangkan Seksi-Seksi hanya bisa menjadi User
+      const finalLevelAkses: UserLevel = isPengurusInti ? 'Admin' : 'User';
+
+      const res = await registerPengurus(email, password, nama, role, finalLevelAkses, noHp.trim() || undefined, citizenData);
       if (res.success && res.user) {
         const registeredEmail = email;
         const registeredPassword = password;
         
         setSuccessMessage(
-          `Registrasi berhasil! Data akun "${nama}" telah tersimpan di Supabase (Hak Akses: ${levelAkses}). Silakan lakukan Login untuk masuk ke dasbor.`
+          `Registrasi berhasil! Data akun "${nama}" telah tersimpan di Supabase (Hak Akses: ${finalLevelAkses}). Silakan lakukan Login untuk masuk ke dasbor.`
         );
 
         setTimeout(() => {
@@ -861,21 +870,18 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
                       onChange={(e) => {
                         const newRole = e.target.value as PengurusRole;
                         setRole(newRole);
-                        if (newRole === 'Warga') {
-                          setLevelAkses('User');
-                        } else {
-                          setLevelAkses('Admin');
-                        }
+                        const isInti = ['Ketua RT', 'Wakil Ketua RT', 'Sekretaris', 'Bendahara'].includes(newRole);
+                        setLevelAkses(isInti ? 'Admin' : 'User');
                       }}
                       className="w-full pl-12 pr-3.5 py-2.5 bg-slate-50/70 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent focus:bg-white transition-all cursor-pointer font-semibold shadow-2xs"
                     >
-                      <option value="Warga">Warga {wilayahShort} (Terdaftar di Buku Data Warga)</option>
+                      <option value="Warga">Warga {wilayahShort} (Hak Akses: User)</option>
                       {SUSUNAN_PENGURUS_RT.map((p) => {
                         const isInti = ['Ketua RT', 'Wakil Ketua RT', 'Sekretaris', 'Bendahara'].includes(p.role);
                         const occupied = getOccupiedInfo(p.role);
                         return (
                           <option key={p.no} value={p.role}>
-                            {p.role} {isInti ? '★ (Pengurus Inti)' : ''} {occupied ? `[Sudah Terisi: ${occupied.nama}]` : ''}
+                            {p.role} {isInti ? '★ (Pengurus Inti - Admin)' : '(Seksi - User)'} {occupied ? `[Sudah Terisi: ${occupied.nama}]` : ''}
                           </option>
                         );
                       })}
@@ -1063,34 +1069,55 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
                   )}
                 </div>
 
-                {/* Pilihan Jenis Pengguna & Hak Akses dengan Warna Kontras */}
+                {/* Pilihan Jenis Pengguna & Hak Akses dengan Aturan Pengurus Inti vs Seksi/Warga */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Jenis Pengguna & Hak Akses
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Jenis Pengguna & Hak Akses
+                    </label>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                      isPengurusInti 
+                        ? 'bg-amber-100 text-amber-900 border-amber-300' 
+                        : 'bg-blue-100 text-blue-900 border-blue-300'
+                    }`}>
+                      {isPengurusInti ? 'Pengurus Inti (Admin)' : 'Seksi / Warga (User)'}
+                    </span>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => setLevelAkses('Admin')}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden ${
-                        levelAkses === 'Admin'
-                          ? 'bg-gradient-to-br from-amber-500/10 via-amber-50 to-orange-50/80 border-amber-400 text-amber-950 ring-2 ring-amber-400/50 shadow-sm'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      disabled={!isPengurusInti}
+                      onClick={() => {
+                        if (isPengurusInti) setLevelAkses('Admin');
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all relative overflow-hidden ${
+                        !isPengurusInti
+                          ? 'bg-slate-100/90 border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                          : levelAkses === 'Admin'
+                          ? 'bg-gradient-to-br from-amber-500/10 via-amber-50 to-orange-50/80 border-amber-400 text-amber-950 ring-2 ring-amber-400/50 shadow-sm cursor-pointer'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center justify-between font-bold text-xs">
                         <span className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                          <span className={`w-2 h-2 rounded-full ${isPengurusInti ? 'bg-amber-500' : 'bg-slate-400'}`} />
                           <span>Admin RT</span>
                         </span>
-                        {levelAkses === 'Admin' && (
+                        {levelAkses === 'Admin' && isPengurusInti && (
                           <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px]">
                             <Check className="w-2.5 h-2.5" />
                           </span>
                         )}
+                        {!isPengurusInti && (
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-500">
+                            Terkunci
+                          </span>
+                        )}
                       </div>
                       <p className="text-[10px] text-slate-600 mt-1 leading-tight font-medium">
-                        Akses penuh (Input, Koreksi, Laporan & Kelola Kategori)
+                        {isPengurusInti 
+                          ? 'Akses penuh (Input, Koreksi, Laporan & Kelola Data)'
+                          : 'Hanya berhak untuk Pengurus Inti (Ketua, Wakil, Sekretaris, Bendahara)'}
                       </p>
                     </button>
 
@@ -1106,7 +1133,7 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
                       <div className="flex items-center justify-between font-bold text-xs">
                         <span className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-blue-500" />
-                          <span>User (Warga)</span>
+                          <span>User (Seksi / Warga)</span>
                         </span>
                         {levelAkses === 'User' && (
                           <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
@@ -1115,10 +1142,19 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
                         )}
                       </div>
                       <p className="text-[10px] text-slate-600 mt-1 leading-tight font-medium">
-                        Hanya bisa membuka & melihat halaman <strong>Laporan Keuangan</strong>
+                        Hak akses akun warga & seksi pengurus untuk melihat laporan keuangan
                       </p>
                     </button>
                   </div>
+
+                  {!isPengurusInti && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-blue-50/90 border border-blue-200 text-blue-900 text-[11px] flex items-start gap-2 shadow-2xs">
+                      <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        Sesuai ketentuan sistem RT, jabatan <strong>"{role}"</strong> berstatus hak akses <strong>User</strong>. Hak akses <strong>Admin</strong> hanya diperuntukkan bagi Pengurus Inti.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -21,13 +21,15 @@ import {
   ShieldCheck,
   Database,
   Copy,
-  Users
+  Users,
+  UserCheck
 } from 'lucide-react';
 import { CategoryItem, Transaction, TransactionType, SupabaseConnectionStatus } from '../types';
 import { formatSimpleRupiah } from '../data/initialData';
 import { KATEGORI_SQL_SCHEMA } from '../lib/supabase';
 import { useSekretariat } from '../context/SekretariatContext';
 import { DataWargaSection } from './DataWargaSection';
+import { DataPengurusSection } from './DataPengurusSection';
 
 interface KelolaKategoriViewProps {
   categories: CategoryItem[];
@@ -59,8 +61,8 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
   onSeedDefaultCategories,
 }) => {
   const { sekretariat, wilayahShort } = useSekretariat();
-  // Subtab State: Data Warga vs Pos Kategori Kas
-  const [activeSubTab, setActiveSubTab] = useState<'data-warga' | 'kategori-kas'>('data-warga');
+  // Subtab State: Data Warga vs Data Pengurus vs Pos Kategori Kas
+  const [activeSubTab, setActiveSubTab] = useState<'data-warga' | 'data-pengurus' | 'kategori-kas'>('data-warga');
 
   // Filter & Search State for Categories
   const [searchQuery, setSearchQuery] = useState('');
@@ -272,7 +274,7 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
           </div>
           <span className="hidden lg:inline text-slate-400 font-normal shrink-0">•</span>
           <p className="text-xs text-slate-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-            Pusat pengelolaan master data penduduk ({wilayahShort}) dan pos kategori kas penerimaan serta belanja RT.
+            Pusat pengelolaan master data penduduk ({wilayahShort}), susunan pengurus RT, dan pos kategori kas penerimaan serta belanja RT.
           </p>
         </div>
       </div>
@@ -294,6 +296,19 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
 
         <button
           type="button"
+          onClick={() => setActiveSubTab('data-pengurus')}
+          className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+            activeSubTab === 'data-pengurus'
+              ? 'bg-gradient-to-r from-indigo-700 via-purple-700 to-blue-700 text-white shadow-md shadow-indigo-600/20 ring-1 ring-indigo-500/30 font-extrabold'
+              : 'text-slate-700 hover:text-indigo-800 hover:bg-white/80'
+          }`}
+        >
+          <UserCheck className={`w-4 h-4 transition-transform ${activeSubTab === 'data-pengurus' ? 'text-indigo-100 scale-110' : 'text-slate-600'}`} />
+          <span>Kelola Data Pengurus</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveSubTab('kategori-kas')}
           className={`flex-1 sm:flex-initial flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeSubTab === 'kategori-kas'
@@ -309,6 +324,14 @@ export const KelolaKategoriView: React.FC<KelolaKategoriViewProps> = ({
       {/* 3. TAB 1: DATA WARGA */}
       {activeSubTab === 'data-warga' && (
         <DataWargaSection
+          connectionStatus={connectionStatus}
+          onTriggerToast={onTriggerToast}
+        />
+      )}
+
+      {/* 4. TAB 2: DATA PENGURUS (CRUD PENGURUS INTI & SEKSI-SEKSI DARI TABEL PENGGUNA) */}
+      {activeSubTab === 'data-pengurus' && (
+        <DataPengurusSection
           connectionStatus={connectionStatus}
           onTriggerToast={onTriggerToast}
         />

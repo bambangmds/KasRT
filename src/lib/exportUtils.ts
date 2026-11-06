@@ -11,6 +11,7 @@ import {
   PeminjamanItem 
 } from '../types';
 import { EmergencyAlertItem, fetchAllPengurusFromSupabase } from './supabase';
+import { isWargaJabatan, sortPengurusByJabatan } from '../data/initialData';
 
 export interface ExportOptions {
   filename?: string;
@@ -1217,5 +1218,205 @@ export async function exportInventarisPDF(
     : `Laporan_Inventaris_Aset_RT${rtStr}_RW${rwStr}_${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(options.filename || defaultFilename);
 }
+
+/**
+ * Ekspor data susunan pengurus & akun pengguna RT ke format PDF Laporan Resmi
+ */
+export async function exportDataPengurusPDF(
+  pengurusList: SupabasePengurusRow[],
+  options: {
+    sekretariat?: {
+      rt?: string;
+      rw?: string;
+      kelurahan?: string;
+      kecamatan?: string;
+      alamat?: string;
+      kota_kabupaten?: string;
+      provinsi?: string;
+      nama_ketua_rt?: string;
+    };
+    filterLabel?: string;
+    filename?: string;
+  } = {}
+): Promise<void> {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const rtStr = options.sekretariat?.rt || '002';
+  const rwStr = options.sekretariat?.rw || '09';
+  const kelStr = (options.sekretariat?.kelurahan || 'Pondok Rajeg').toUpperCase();
+  const kecStr = (options.sekretariat?.kecamatan || 'Cibinong').toUpperCase();
+  const alamatStr = options.sekretariat?.alamat || `RT.${rtStr} RW.${rwStr}, Kel. ${options.sekretariat?.kelurahan || 'Pondok Rajeg'}`;
+
+  // 1. Saring hanya pengurus (Keluarkan yang berstatus/jabatan Warga)
+  // 2. Urutkan sesuai hierarki jabatan RT: Ketua, Wakil Ketua, Sekretaris, Bendahara, Seksi-Seksi, dst.
+  const validPengurus = (pengurusList || [])
+    .filter((p) => !isWargaJabatan(p.jabatan))
+    .slice()
+    .sort(sortPengurusByJabatan);
+
+  // Cari Ketua RT untuk tanda tangan
+  const ketuaUser = validPengurus.find((p) => 
+    p.jabatan && p.jabatan.toLowerCase().includes('ketua') && !p.jabatan.toLowerCase().includes('wakil')
+  ) || validPengurus.find((p) => p.level_akses === 'Admin') || validPengurus[0];
+
+  const ketuaNama = ketuaUser?.nama || options.sekretariat?.nama_ketua_rt || 'Bpk. Ketua RT';
+  const ketuaJabatan = ketuaUser?.jabatan || `Ketua RT.${rtStr} RW.${rwStr}`;
+
+  // 4. Sertakan Logo RT di kiri atas beserta identitas RT/RW di bawah logo
+  let logoDataUrl: string | null = null;
+  try {
+    logoDataUrl = await getRtLogoBase64();
+  } catch (e) {
+    console.warn('[PDF Export] Logo load error', e);
+  }
+
+  if (logoDataUrl) {
+    // Logo diletakkan di kiri atas mulai x = 5.5mm, y = 4.5mm, ukuran 13.5x13.5 mm
+    doc.addImage(logoDataUrl, 'PNG', 5.5, 4.5, 13.5, 13.5);
+  }
+
+  // Teks RT & RW di bawah Logo RT
+  const cleanRt = String(rtStr).replace(/^RT\.?\s*/i, '');
+  const cleanRw = String(rwStr).replace(/^RW\.?\s*/i, '');
+  const rtRwSubText = `RT. ${cleanRt}, RW. ${cleanRw}`;
+
+  doc.setFontSize(6.5);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  doc.text(rtRwSubText, 12.25, 19.7, { align: 'center' });
+
+  // Header Kop Surat (Center pada x = 105mm)
+  doc.setFontSize(13);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(`RUKUN TETANGGA ${rtStr} / RUKUN WARGA ${rwStr}`, 105, 10, { align: 'center' });
+
+  doc.setFontSize(9.5);
+  doc.text(`KELURAHAN ${kelStr} - KECAMATAN ${kecStr}`, 105, 15, { align: 'center' });
+
+  doc.setFontSize(8);
+  doc.setFont('Helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(alamatStr, 105, 19.5, { align: 'center' });
+
+  // Garis Pembatas Kop Surat (Margin Left: 4mm, Right: 4mm -> lebar x: 4 sampai 206)
+  doc.setDrawColor(15, 23, 42);
+  doc.setLineWidth(0.8);
+  doc.line(4, 22.5, 206, 22.5);
+  doc.setLineWidth(0.2);
+  doc.line(4, 23.5, 206, 23.5);
+
+  // Judul Dokumen (digeser ke bawah agar memiliki ruang lega dari kop surat)
+  doc.setFontSize(11);
+  doc.setFont('Helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('STRUKTUR ORGANISASI & SUSUNAN PENGURUS RT', 105, 33, { align: 'center' });
+
+  doc.setFontSize(8);
+  doc.setFont('Helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  const now = new Date();
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const tglCetak = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  doc.text(`Periode Aktif • Dicetak pada: ${tglCetak}${options.filterLabel ? ` • Filter: ${options.filterLabel}` : ''}`, 105, 37.5, { align: 'center' });
+
+  // 1. Siapkan Data Tabel (Kolom Kategori dan Kolom Hak Akses Dihapus, Teks 'Terkait Warga' setelah Alamat Dihapus)
+  const tableRows = validPengurus.map((p, idx) => {
+    const rawAlamat = p.alamat_domisili || '-';
+    const cleanAlamat = rawAlamat.replace(/\s*\(?Terkait Warga\)?/gi, '').trim() || '-';
+
+    return [
+      String(idx + 1),
+      p.nama || '-',
+      p.jabatan || '-',
+      p.email || '-',
+      p.no_hp || '-',
+      cleanAlamat
+    ];
+  });
+
+  // 1. Kolom Kategori dan Hak Akses telah dihapus (tersisa 6 kolom)
+  // 2. Lebar kolom Nama Lengkap & Email Akun dikurangi, lebar kolom Alamat Domisili ditambah proporsional
+  // 3. Margin Left & Right = 4 mm, Top & Bottom = 6 mm (Total lebar kerja 202 mm)
+  // 4. Baris dirapatkan (cellPadding: 1.2 mm) agar rapi & proporsional
+  autoTable(doc, {
+    startY: 41,
+    head: [['No', 'Nama Lengkap', 'Jabatan / Posisi', 'Email Akun', 'No. HP', 'Alamat Domisili']],
+    body: tableRows,
+    theme: 'grid',
+    styles: {
+      fontSize: 8,
+      cellPadding: 1.2,
+      font: 'Helvetica',
+      textColor: [30, 41, 59],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.1,
+      valign: 'middle',
+    },
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 1.8,
+      halign: 'center', // Judul kolom di posisi tengah
+      valign: 'middle',
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 36, fontStyle: 'bold' }, // Nama Lengkap dikurangi dari 46 ke 36 mm
+      2: { cellWidth: 40 },
+      3: { cellWidth: 30 }, // Email Akun dikurangi dari 42 ke 30 mm
+      4: { cellWidth: 26, halign: 'center' },
+      5: { cellWidth: 60 }, // Alamat Domisili ditambah proporsional dari 38 ke 60 mm
+    },
+    margin: { top: 6, bottom: 6, left: 4, right: 4 },
+  });
+
+  // Tanda Tangan Ketua RT
+  const finalY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 8 : 120;
+  let signY = finalY;
+  if (signY > 262) {
+    doc.addPage();
+    signY = 14;
+  }
+
+  const locationName = options.sekretariat?.kelurahan || 'Pondok Rajeg';
+  doc.setFontSize(8.5);
+  doc.setFont('Helvetica', 'normal');
+  doc.setTextColor(30, 41, 59);
+
+  doc.text(`${locationName}, ${tglCetak}`, 142, signY);
+  doc.text(`Ketua RT.${rtStr} RW.${rwStr},`, 142, signY + 4.5);
+
+  doc.setFont('Helvetica', 'bold');
+  doc.text(`${ketuaNama}`, 142, signY + 19);
+
+  doc.setDrawColor(30, 41, 59);
+  doc.setLineWidth(0.4);
+  doc.line(142, signY + 21.5, 203, signY + 21.5);
+
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text(`${ketuaJabatan}`, 142, signY + 26);
+
+  // Footer Nomor Halaman (Margin Left: 4mm, Bottom: 6mm)
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('Helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `Halaman ${i} dari ${pageCount} — Dokumen Susunan Pengurus RT.${rtStr} RW.${rwStr}`,
+      4,
+      292
+    );
+  }
+
+  const defaultFilename = `Susunan_Pengurus_RT${rtStr}_RW${rwStr}_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(options.filename || defaultFilename);
+}
+
 
 

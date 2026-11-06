@@ -583,6 +583,74 @@ Dokumen ini merekam seluruh catatan pengembangan, arsitektur, dan instruksi proy
       - **Pos Kas Masuk**: Badge hijau zamrud solid pekat (`bg-emerald-600 text-white font-black border border-emerald-700 shadow-xs`).
       - **Pos Kas Keluar**: Badge merah mawar solid pekat (`bg-rose-600 text-white font-black border border-rose-700 shadow-xs`).
 
+70. **Penambahan Tab & Halaman CRUD "Kelola Data Pengurus" dari Tabel `pengguna` Supabase (`KelolaKategoriView.tsx` & `DataPengurusSection.tsx`)**:
+    - **Tab Baru di Sub Menu "Kelola Data Warga & Kategori"**:
+      - Menambahkan tab **"Kelola Data Pengurus"** (ikon `UserCheck`) berdampingan dengan *Kelola Data Warga* dan *Pos Kategori Kas*.
+    - **Halaman CRUD Pengurus Bersumber dari Tabel `pengguna` Supabase**:
+      - Terkoneksi secara *real-time* ke tabel `pengguna` di Supabase (`fetchAllPenggunaFromSupabase`, `createPenggunaInSupabase`, `updatePenggunaInSupabase`, dan `deletePenggunaFromSupabase`).
+      - **Dukungan Penuh Pengurus Inti & Seksi-Seksi**:
+        - **Pengurus Inti**: Ketua RT, Wakil Ketua RT, Sekretaris, Bendahara (diberikan badge perisai ungu/indigo terkemuka).
+        - **Seksi-Seksi RT**: Seksi Keamanan, Seksi Sarana & Prasarana, Seksi Humas, Seksi Kerohanian, Seksi Pemuda & Olahraga, Seksi Pemberdayaan Perempuan, dan seksi kustom (diberikan badge bintang/award teal).
+      - **Autofill Cerdas dari Master Data Warga**: Form tambah/koreksi menyediakan pemilih warga (*dropdown*) yang otomatis mengisi nama lengkap, nomor HP, alamat domisili, NIK, No. KK, dan `warga_id`.
+      - **Tingkat Hak Akses Fleksibel**: Pilihan tingkat akses Administrator (akses penuh) atau Operator/User.
+      - **Kontak & Interaktivitas**: Dilengkapi tombol pintas chat WhatsApp langsung (`https://wa.me/...`) untuk setiap pengurus yang memiliki nomor HP.
+      - **Cetak Dokumen Resmi PDF Susunan Pengurus RT (`exportDataPengurusPDF`)**: Menghasilkan dokumen resmi struktur organisasi RT berstandar cetak A4 dengan kop surat RT dan kolom tanda tangan Ketua RT.
+      - **Modal Skema SQL Pengguna**: Menyediakan tombol untuk menyalin skema DDL tabel `pengguna` siap pakai di Supabase SQL Editor.
+
+71. **Penyaringan Warga & Pengurutan Hierarkis Jabatan Pengurus RT (`DataPengurusSection.tsx` & `exportUtils.ts`)**:
+    - **Pengecualian Status Warga (`isWargaJabatan`)**:
+      - Akun pengguna dengan jabatan "Warga" (bukan Pengurus Inti maupun Seksi) dikecualikan sepenuhnya dari halaman ini, baik pada metrik statistik, tabel daftar pengurus, maupun dokumen ekspor PDF.
+    - **Pengurutan Sesuai Hierarki Jabatan Resmi (`sortPengurusByJabatan` & `getJabatanRank`)**:
+      - Data yang tampil di tabel maupun di file PDF diurutkan secara tertib mengikuti struktur organisasi RT:
+        1. **Ketua RT**
+        2. **Wakil Ketua RT** (jika ada)
+        3. **Sekretaris**
+        4. **Bendahara**
+        5. **Seksi-Seksi RT** (Seksi Keamanan, Seksi Sarana & Prasarana, Seksi Humas, Seksi Kerohanian, Seksi Pemuda & Olahraga, Seksi Pemberdayaan Perempuan, dst.)
+        6. Pengurus kustom lainnya (diurutkan menurut abjad nama).
+
+72. **Penyempurnaan Format Cetak PDF Susunan Pengurus RT (`exportDataPengurusPDF` di `exportUtils.ts`)**:
+    - **Margin Kustom Dokumen**:
+      - Margin Atas (Top) & Bawah (Bottom) = 6 mm.
+      - Margin Kiri (Left) & Kanan (Right) = 3 mm.
+      - Garis kop surat dan tabel disesuaikan melebar presisi dari x = 3 mm hingga x = 207 mm (total lebar kerja 204 mm).
+    - **Penempatan Judul Kolom di Posisi Tengah**:
+      - Seluruh judul kolom tabel (`No`, `Nama Lengkap`, `Jabatan / Posisi`, `Kategori`, `Email Akun`, `No. HP`, `Hak Akses`, `Alamat Domisili`) diatur perataannya tepat di tengah (`halign: 'center'`).
+    - **Penyederhanaan Judul Kolom No. HP**:
+      - Mengganti judul kolom tabel dari sebelumnya `No. WhatsApp / HP` menjadi ringkas **`No. HP`**, baik pada cetak PDF maupun tabel antarmuka.
+    - **Penyertaan Logo Resmi RT di Kiri Atas**:
+      - Menyertakan logo RT resmi (`/rt_logo.svg`) di sudut kiri atas dokumen PDF (x = 4 mm, y = 6 mm, dimensi 15x15 mm) berdampingan rapi dengan teks Kop Surat resmi RT.
+
+73. **Penyempurnaan Halaman Cetak PDF & Tabel Laporan Data Pengurus RT (`exportUtils.ts` & `DataPengurusSection.tsx`)**:
+    - **Penyesuaian Proporsi Lebar Kolom Cetak PDF**:
+      - Kolom **Nama Lengkap** dikurangi dari 46 mm menjadi 36 mm.
+      - Kolom **Email Akun** dikurangi dari 42 mm menjadi 30 mm.
+      - Kolom **Alamat Domisili** ditambah secara proporsional dari 38 mm menjadi 60 mm (+22 mm) sehingga alamat lengkap warga/pengurus tidak terpotong atau terlalu padat barisnya.
+    - **Pergeseran Judul Laporan ke Bawah**:
+      - Teks judul dokumen *"STRUKTUR ORGANISASI & SUSUNAN PENGURUS RT"* digeser ke bawah dari posisi y = 28 mm ke y = 33 mm.
+      - Teks tanggal & filter digeser ke y = 37.5 mm, dan posisi awal tabel (`startY`) digeser ke 41 mm agar memberi jarak yang lega, elegan, dan proporsional terhadap garis Kop Surat.
+    - **Penghapusan Teks "Terkait Warga"**:
+      - Menghapus badge teks *"Terkait Warga"* yang sebelumnya muncul setelah teks Alamat Domisili pada tabel data pengurus di antarmuka web, serta memastikan sanitasi string pada cetak PDF.
+    - **Penghapusan Kolom Kategori & Kolom Hak Akses**:
+      - Menghilangkan kolom **Kategori** dan kolom **Hak Akses** dari tabel antarmuka `DataPengurusSection.tsx` (menyesuaikan colSpan menjadi 6) serta memastikan tabel PDF bersih hanya memuat 6 kolom esensial: `No`, `Nama Lengkap`, `Jabatan / Posisi`, `Email Akun`, `No. HP`, dan `Alamat Domisili`.
+
+74. **Penghapusan Fitur Delete & Penguatan Fitur Update Jabatan ke Warga (`DataPengurusSection.tsx`)**:
+    - **Penghapusan Tombol Hapus (Delete)**:
+      - Tombol ikon tempat sampah (`Trash2`) dan modal konfirmasi hapus permanen akun pengurus dihilangkan sepenuhnya dari tabel pengurus. Kolom Aksi kini hanya menyajikan tombol **"Update"** (`Pencil`).
+    - **Fitur Update: Alihkan Jabatan Menjadi Warga & Hak Akses Menjadi User**:
+      - Modal Update kini dilengkapi kartu aksi cepat *"Alihkan Jabatan Menjadi Warga Biasa"* serta pilihan kategori *"Warga Biasa"* berdampingan dengan Pengurus Inti, Seksi, dan Jabatan Lain.
+      - Memilih Warga secara otomatis mengeset `jabatan = 'Warga'` dan mengunci `level_akses = 'User'` pada tabel `pengguna` Supabase.
+      - Begitu disimpan, akun pengurus tersebut dialihkan statusnya menjadi warga biasa (dikecualikan dari tabel struktur pengurus aktif), dan posisi jabatannya sebelumnya di Supabase menjadi kosong sehingga warga lain dapat mendaftar/menggantikannya melalui fitur pendaftaran (*Daftar Akun*).
+
+75. **Pembersihan Teks Header Tab Kelola Data Pengurus (`DataPengurusSection.tsx`)**:
+    - Menghapus badge teks `"Tabel Database: pengguna"`.
+    - Menghapus teks deskripsi `"Data susunan Pengurus Inti (Ketua RT, Wakil Ketua RT, Sekretaris, Bendahara) dan Seksi-Seksi RT..."`.
+    - Menghapus badge urutan `"Urutan: Ketua RT → Wakil Ketua (jika ada) → Sekretaris → Bendahara → Seksi-Seksi RT"`.
+76. **Pembersihan Teks Wilayah RT/RW di Atas Judul Kelola Data Pengurus (`DataPengurusSection.tsx`)**:
+    - Menghapus elemen teks `{wilayahShort}` (misal: "RT.002 RW.09") yang sebelumnya berada tepat di atas judul *"Kelola Data Pengurus & Akun Pengguna RT"*.
+77. **Restorasi Frame Header Tab Kelola Data Pengurus (`DataPengurusSection.tsx`)**:
+    - Mengembalikan warna dasar frame header ke warna putih bersih elegan (`bg-white border-slate-200 shadow-2xs`) sesuai preferensi tampilan yang lebih netral, bersih, dan konsisten dengan desain kartu lainnya.
+
 ---
 
 ## 5. Rencana & Opsi Pengembangan Berikutnya (Dapat Dilanjutkan Nanti)
