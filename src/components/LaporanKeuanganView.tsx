@@ -103,7 +103,7 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
   onNavigateToKelolaData,
   activeUser,
 }) => {
-  const { sekretariat, wilayahShort, wilayahLabel, kelurahanLabel } = useSekretariat();
+  const { sekretariat, wilayahShort, kelurahanLabel } = useSekretariat();
   const [activeSubTab, setActiveSubTab] = useState<'rekap-arus-kas' | 'laporan-iuran' | 'kartu-iuran-warga'>('rekap-arus-kas');
 
   // 1. Auto-fetch data terbaru dari tabel 'kas_rt' di Supabase saat halaman dibuka
@@ -141,7 +141,6 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>(defaultYear);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchKeterangan, setSearchKeterangan] = useState<string>('');
   const [detailSearchKeterangan, setDetailSearchKeterangan] = useState<string>('');
   const [isApplyingFilter, setIsApplyingFilter] = useState(false);
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
@@ -256,18 +255,6 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
     );
   };
 
-  // Preset kata kunci pencarian keterangan/uraian warga
-  const quickKeteranganKeywords = [
-    'Iuran Warga',
-    'Perbaikan Jalan',
-    'Pembangunan Masjid',
-    'Biaya keRTan',
-    'Lampu Jalan',
-    'Kebersihan',
-    'Santunan',
-    'Pos Ronda',
-    'Konsumsi Rapat',
-  ];
 
   // Sync selectedYear if transactions loaded and selectedYear not yet in availableYears
   useEffect(() => {
@@ -277,7 +264,7 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
   }, [availableYears, selectedYear]);
 
   const months = [
-    { value: 'all', label: 'Sepanjang Tahun (Semua Bulan)' },
+    { value: 'all', label: 'Semua Bulan' },
     { value: '01', label: 'Januari' },
     { value: '02', label: 'Februari' },
     { value: '03', label: 'Maret' },
@@ -306,7 +293,6 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
 
   // Filtered transactions for calculation based on dashboard filters
   const filteredTransactions = useMemo(() => {
-    const q = searchKeterangan.toLowerCase().trim();
     return transactions.filter((tx) => {
       if (!tx.date) return false;
       const parts = tx.date.split('-');
@@ -316,11 +302,10 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
       const matchYear = selectedYear === 'all' || txYear === selectedYear;
       const matchMonth = selectedMonth === 'all' || txMonth === selectedMonth;
       const matchCategory = selectedCategory === 'all' || tx.category === selectedCategory;
-      const matchKeterangan = !q || (tx.description || '').toLowerCase().includes(q);
 
-      return matchYear && matchMonth && matchCategory && matchKeterangan;
+      return matchYear && matchMonth && matchCategory;
     });
-  }, [transactions, selectedYear, selectedMonth, selectedCategory, searchKeterangan]);
+  }, [transactions, selectedYear, selectedMonth, selectedCategory]);
 
   // 2. Hitung secara otomatis nilai untuk 3 kartu metrik di bagian atas:
   // - "Total Kas Masuk": Jumlahkan semua kolom 'jumlah' yang memiliki 'jenis' = 'Masuk'.
@@ -457,7 +442,6 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
   // Drill-down: Transaksi detail untuk kategori terpilih, disaring menurut bulan & tahun anggaran aktif serta kata kunci keterangan
   const categoryDetailTransactions = useMemo(() => {
     if (!selectedCategoryDetail) return [];
-    const qGlobal = searchKeterangan.toLowerCase().trim();
     const qDetail = detailSearchKeterangan.toLowerCase().trim();
 
     return transactions
@@ -467,13 +451,12 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
         const matchYear = selectedYear === 'all' || txYear === selectedYear;
         const matchMonth = selectedMonth === 'all' || txMonth === selectedMonth;
         const matchCategory = tx.category === selectedCategoryDetail;
-        const matchGlobal = !qGlobal || (tx.description || '').toLowerCase().includes(qGlobal);
         const matchDetail = !qDetail || (tx.description || '').toLowerCase().includes(qDetail);
 
-        return matchYear && matchMonth && matchCategory && matchGlobal && matchDetail;
+        return matchYear && matchMonth && matchCategory && matchDetail;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, selectedCategoryDetail, selectedYear, selectedMonth, searchKeterangan, detailSearchKeterangan]);
+  }, [transactions, selectedCategoryDetail, selectedYear, selectedMonth, detailSearchKeterangan]);
 
   // Ringkasan metrik untuk kategori yang sedang di-drilldown
   const categoryDetailSummary = useMemo(() => {
@@ -535,16 +518,14 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
     setSelectedMonth('all');
     setSelectedYear('all');
     setSelectedCategory('all');
-    setSearchKeterangan('');
     setDetailSearchKeterangan('');
-    onTriggerToast('Filter direset ke semua periode dan keterangan.', 'info');
+    onTriggerToast('Filter direset ke semua periode.', 'info');
   };
 
   const isFilterActive =
     selectedMonth !== 'all' ||
     selectedYear !== 'all' ||
-    selectedCategory !== 'all' ||
-    Boolean(searchKeterangan.trim());
+    selectedCategory !== 'all';
 
   const handleManualRefresh = async () => {
     if (onRefresh) {
@@ -615,20 +596,11 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
       </div>
 
       {/* Header Title & Action Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full border border-emerald-300/80 shadow-2xs">
-              Laporan & Analisis Kas
-            </span>
-            <span className="text-xs font-medium text-slate-500 hidden sm:inline">• {wilayahLabel}</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
             Laporan & Rekap Kas Warga
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Analisis arus kas masuk, pengeluaran rutin, dan saldo kas terverifikasi dari Supabase
-          </p>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap print:hidden">
@@ -637,18 +609,18 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 transition-all rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 shadow-2xs cursor-pointer active:scale-98 disabled:opacity-60"
+            className="h-9 sm:h-9.5 px-3 sm:px-3.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-98 disabled:opacity-60 shrink-0"
             title="Segarkan data langsung dari Supabase"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Segarkan</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 shrink-0 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Segarkan</span>
           </button>
 
           {/* Cetak PDF Button */}
           <button
             type="button"
             onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 transition-all rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 shadow-2xs cursor-pointer active:scale-98"
+            className="h-9 sm:h-9.5 px-3 sm:px-3.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-98 shrink-0"
             title="Cetak Laporan PDF Resmi Warga"
           >
             <Printer className="w-3.5 h-3.5 text-blue-600 shrink-0" />
@@ -666,7 +638,7 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
                 handleExportExcel();
               }
             }}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white hover:from-slate-800 hover:to-indigo-900 transition-all rounded-xl text-xs sm:text-sm font-semibold shadow-sm ring-1 ring-slate-700/50 cursor-pointer active:scale-98"
+            className="h-9 sm:h-9.5 px-3.5 sm:px-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white border border-slate-800 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-1.5 shadow-sm ring-1 ring-slate-700/60 transition-all cursor-pointer active:scale-98 shrink-0"
             title="Pilihan Format Ekspor Lengkap (.xlsx, PDF, CSV, JSON)"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -678,7 +650,7 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
             <button
               type="button"
               onClick={onNavigateToKelolaData}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 text-indigo-900 transition-all rounded-xl text-xs sm:text-sm font-bold border border-indigo-200/80 shadow-2xs cursor-pointer active:scale-98"
+              className="h-9 sm:h-9.5 px-3 sm:px-3.5 bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 text-indigo-900 border border-indigo-200/90 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-98 shrink-0"
               title="Buka Halaman Kelola Data (Backup, Restore, Import & Reset Database)"
             >
               <Database className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -757,181 +729,120 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
       {/* VIEW 3: REKAPITULASI & ARUS KAS UTAMA */}
       {activeSubTab === 'rekap-arus-kas' && (
         <div className="space-y-4 sm:space-y-5 lg:space-y-6">
-          {/* 3. Filter Section (Bulan, Tahun, Kategori, & Keterangan) */}
-          <div className="bg-white rounded-2xl p-3.5 sm:p-4.5 border border-slate-200 shadow-sm print:hidden">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 sm:gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 flex-1">
-            {/* Filter Bulan */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>Bulan Periode</span>
-              </label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium"
-              >
-                {months.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* 3. Filter Section (Bulan, Tahun, Kategori, & Keterangan) - Frame Hitam Modern Teks Putih Terang */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-md text-white print:hidden">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                {/* Filter Bulan */}
+                <div>
+                  <label className="block text-xs font-bold text-white mb-1.5 flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="p-1 rounded-md bg-slate-800 text-indigo-300 border border-slate-700 shadow-2xs shrink-0">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="font-extrabold text-white tracking-tight whitespace-nowrap">Bulan Periode</span>
+                  </label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-400 border border-slate-700 cursor-pointer shadow-inner"
+                  >
+                    {months.map((m) => (
+                      <option key={m.value} value={m.value} className="bg-slate-800 text-white">
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Filter Tahun */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>Tahun Anggaran</span>
-              </label>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium"
-              >
-                <option value="all">Semua Tahun (Akumulatif)</option>
-                {availableYears.map((yr) => (
-                  <option key={yr} value={yr}>
-                    Tahun {yr}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {/* Filter Tahun */}
+                <div>
+                  <label className="block text-xs font-bold text-white mb-1.5 flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="p-1 rounded-md bg-slate-800 text-indigo-300 border border-slate-700 shadow-2xs shrink-0">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="font-extrabold text-white tracking-tight whitespace-nowrap">Tahun Anggaran</span>
+                  </label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-400 border border-slate-700 cursor-pointer shadow-inner"
+                  >
+                    <option value="all" className="bg-slate-800 text-white">Semua Tahun (Akumulatif)</option>
+                    {availableYears.map((yr) => (
+                      <option key={yr} value={yr} className="bg-slate-800 text-white">
+                        Tahun {yr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Filter Kategori */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-slate-400" />
-                <span>Kategori Kas</span>
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium"
-              >
-                <option value="all">Semua Kategori</option>
-                {uniqueCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {/* Filter Kategori */}
+                <div>
+                  <label className="block text-xs font-bold text-white mb-1.5 flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="p-1 rounded-md bg-slate-800 text-indigo-300 border border-slate-700 shadow-2xs shrink-0">
+                      <Layers className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="font-extrabold text-white tracking-tight whitespace-nowrap">Kategori Kas</span>
+                  </label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-400 border border-slate-700 cursor-pointer shadow-inner"
+                  >
+                    <option value="all" className="bg-slate-800 text-white">Semua Kategori</option>
+                    {uniqueCategories.map((c) => (
+                      <option key={c} value={c} className="bg-slate-800 text-white">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-            {/* Filter Keterangan / Uraian */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Search className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Cari Keterangan / Uraian</span>
-                </span>
-                {searchKeterangan && (
+              <div className="flex items-center gap-2 shrink-0">
+                {isFilterActive && (
                   <button
                     type="button"
-                    onClick={() => setSearchKeterangan('')}
-                    className="text-[10px] text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                    onClick={handleResetFilter}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all rounded-xl text-xs sm:text-sm font-semibold cursor-pointer active:scale-98"
+                    title="Kembalikan filter ke semua periode"
                   >
-                    Hapus
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
                   </button>
                 )}
-              </label>
-              {/* Filter Keterangan / Uraian dengan warna abu-abu tebal (bg-slate-800 border-slate-700) */}
-              <div className="relative bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
-                <input
-                  type="text"
-                  value={searchKeterangan}
-                  onChange={(e) => setSearchKeterangan(e.target.value)}
-                  placeholder="Ketik keterangan (cth: lampu, iuran...)"
-                  className="w-full pl-8 pr-7 py-2 bg-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-300 outline-none font-medium"
-                />
-                <Search className="w-3.5 h-3.5 text-slate-300 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                {searchKeterangan && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchKeterangan('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white p-0.5 rounded-full cursor-pointer"
-                    title="Kosongkan pencarian"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
+
+                <button
+                  type="button"
+                  onClick={handleApplyFilter}
+                  disabled={isApplyingFilter}
+                  className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white transition-all rounded-xl text-xs sm:text-sm font-bold shadow-sm shadow-emerald-600/30 hover:shadow-md cursor-pointer disabled:opacity-60 active:scale-98"
+                >
+                  {isApplyingFilter ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  ) : (
+                    <Filter className="w-3.5 h-3.5 shrink-0" />
+                  )}
+                  <span>{isApplyingFilter ? 'Menerapkan...' : 'Terapkan Filter'}</span>
+                </button>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+            {/* Filter status indicator pill */}
             {isFilterActive && (
-              <button
-                type="button"
-                onClick={handleResetFilter}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all rounded-xl text-xs sm:text-sm font-semibold cursor-pointer active:scale-98"
-                title="Kembalikan filter ke semua periode"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset</span>
-              </button>
+              <div className="mt-3.5 pt-2.5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-slate-300">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>
+                    Menyaring <strong className="text-white">{filteredTransactions.length}</strong> transaksi
+                    {' '}dari total {transactions.length} catatan Supabase
+                  </span>
+                </span>
+                <span className="text-slate-400 text-[11px]">Filter aktif mempengaruhi 3 kartu metrik, grafik, dan tabel</span>
+              </div>
             )}
-
-            <button
-              type="button"
-              onClick={handleApplyFilter}
-              disabled={isApplyingFilter}
-              className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white transition-all rounded-xl text-xs sm:text-sm font-bold shadow-sm shadow-emerald-600/20 hover:shadow-md cursor-pointer disabled:opacity-60 active:scale-98"
-            >
-              {isApplyingFilter ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-              ) : (
-                <Filter className="w-3.5 h-3.5 shrink-0" />
-              )}
-              <span>{isApplyingFilter ? 'Menerapkan...' : 'Terapkan Filter'}</span>
-            </button>
           </div>
-        </div>
 
-        {/* Quick Chips Keterangan */}
-        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-emerald-600" />
-            Pencarian Cepat:
-          </span>
-          {quickKeteranganKeywords.map((kw) => {
-            const isSelected = searchKeterangan.toLowerCase() === kw.toLowerCase();
-            return (
-              <button
-                key={kw}
-                type="button"
-                onClick={() => setSearchKeterangan(isSelected ? '' : kw)}
-                className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-semibold'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
-                }`}
-              >
-                {kw}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Filter status indicator pill */}
-        {isFilterActive && (
-          <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-              <span>
-                Menyaring <strong>{filteredTransactions.length}</strong> transaksi
-                {searchKeterangan && (
-                  <> dengan uraian &ldquo;<span className="text-emerald-700 font-semibold">{searchKeterangan}</span>&rdquo;</>
-                )}
-                {' '}dari total {transactions.length} catatan Supabase
-              </span>
-            </span>
-            <span className="text-slate-400 text-[11px]">Filter aktif mempengaruhi 3 kartu metrik, grafik, dan tabel</span>
-          </div>
-        )}
-      </div>
 
       {/* 2. Tiga Kartu Metrik di Bagian Atas - Masing-masing Warna Dasar Berbeda */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5">
@@ -1265,43 +1176,60 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
       </div>
 
       {/* 5. Table Summary Category Section (Drill-Down Trigger) */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-5 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
-                Ringkasan Realisasi Anggaran Per Kategori
-              </h2>
-              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 hidden sm:inline">
-                Interaktif
-              </span>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Header Bar dengan Warna Menarik (Modern Indigo/Slate Gradient) */}
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-3.5 sm:p-4.5 border-b border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400 p-[1.5px] shadow-sm shrink-0">
+              <div className="w-full h-full bg-slate-900 rounded-[6.5px] flex items-center justify-center text-emerald-400">
+                <BarChart3 className="w-4 h-4" />
+              </div>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Klik baris kategori di bawah ini untuk melihat rincian riwayat transaksi secara langsung (Drill-down).
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+                  Ringkasan Realisasi Anggaran Per Kategori
+                </h2>
+                <span className="text-[10px] font-black text-emerald-300 bg-emerald-950/90 px-2 py-0.5 rounded border border-emerald-500/40 hidden sm:inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Interaktif
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">
+                Klik baris kategori untuk melihat rincian riwayat transaksi secara langsung (Drill-down).
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1 rounded-full border border-slate-200 self-start sm:self-auto">
+
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <span className="text-[11px] font-bold text-indigo-200 bg-indigo-950/80 px-2.5 py-1 rounded-lg border border-indigo-700/50 shadow-2xs">
               {categoryBreakdown.length} Pos Anggaran
+            </span>
+            <span className="text-[11px] font-bold text-emerald-300 bg-emerald-950/60 px-2 py-1 rounded-lg border border-emerald-800/40 hidden md:inline">
+              {categoryBreakdown.filter((c) => c.jenis === 'Masuk').length} Masuk
+            </span>
+            <span className="text-[11px] font-bold text-rose-300 bg-rose-950/60 px-2 py-1 rounded-lg border border-rose-800/40 hidden md:inline">
+              {categoryBreakdown.filter((c) => c.jenis === 'Keluar').length} Keluar
             </span>
           </div>
         </div>
 
+        {/* Tabel Ringkasan dengan Tinggi Baris Kompak & Warna Menarik */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
-                <th className="py-3 px-5 sm:px-6 text-white font-bold bg-slate-950">Kategori Anggaran</th>
-                <th className="py-3 px-5 sm:px-6 text-white font-bold bg-slate-950">Jenis Aliran</th>
-                <th className="py-3 px-5 sm:px-6 text-center text-white font-bold bg-slate-950">Frekuensi Transaksi</th>
-                <th className="py-3 px-5 sm:px-6 text-right text-white font-bold bg-slate-950">Total Nominal</th>
-                <th className="py-3 px-4 text-center w-28 text-white font-bold bg-slate-950">Rincian</th>
+              <tr className="bg-slate-950 border-b-2 border-indigo-500/40 text-[10px] uppercase tracking-wider text-slate-200 font-black">
+                <th className="py-2.5 px-3.5 sm:px-4.5 text-white font-bold bg-slate-950 min-w-[180px]">Kategori Anggaran</th>
+                <th className="py-2.5 px-3.5 sm:px-4.5 text-white font-bold bg-slate-950 min-w-[120px]">Jenis Aliran</th>
+                <th className="py-2.5 px-3.5 sm:px-4.5 text-center text-white font-bold bg-slate-950 min-w-[130px]">Frekuensi Transaksi</th>
+                <th className="py-2.5 px-3.5 sm:px-4.5 text-right text-white font-bold bg-slate-950 min-w-[140px]">Total Nominal</th>
+                <th className="py-2.5 px-3 text-center w-28 text-white font-bold bg-slate-950">Aksi Detail</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 text-xs">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {categoryBreakdown.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                  <td colSpan={5} className="py-6 text-center text-slate-400 italic">
                     Tidak ada data transaksi yang cocok dengan filter yang dipilih.
                   </td>
                 </tr>
@@ -1313,31 +1241,49 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
                     <tr
                       key={i}
                       onClick={() => handleSelectCategoryRow(cat.kategori)}
-                      className={`cursor-pointer transition-all duration-150 ${
+                      className={`cursor-pointer transition-colors duration-150 ${
                         isSelected
-                          ? 'bg-emerald-50/80 border-l-4 border-l-emerald-600 font-semibold'
-                          : 'hover:bg-slate-50/90 border-l-4 border-l-transparent'
+                          ? 'bg-gradient-to-r from-emerald-50 via-teal-50/40 to-emerald-50/80 border-l-4 border-l-emerald-600 font-semibold'
+                          : i % 2 === 0
+                          ? 'bg-white hover:bg-indigo-50/50 border-l-4 border-l-transparent'
+                          : 'bg-slate-50/45 hover:bg-indigo-50/60 border-l-4 border-l-transparent'
                       }`}
                       title={`Klik untuk melihat detail seluruh transaksi kategori "${cat.kategori}"`}
                     >
-                      <td className="py-3.5 px-5 sm:px-6 font-bold text-slate-900">
+                      {/* Kategori Anggaran */}
+                      <td className="py-2 px-3.5 sm:px-4.5 font-bold text-slate-900">
                         <div className="flex items-center gap-2">
-                          <span className={isSelected ? 'text-emerald-900 font-black' : ''}>
+                          <span
+                            className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
+                              isPemasukan
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-rose-100 text-rose-700'
+                            }`}
+                          >
+                            {isPemasukan ? (
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            ) : (
+                              <ArrowDownLeft className="w-3.5 h-3.5" />
+                            )}
+                          </span>
+                          <span className={isSelected ? 'text-emerald-950 font-black' : 'text-slate-800'}>
                             {cat.kategori}
                           </span>
                           {isSelected && (
-                            <span className="text-[10px] font-bold bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded">
+                            <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded shadow-2xs">
                               Dibuka
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3.5 px-5 sm:px-6">
+
+                      {/* Jenis Aliran */}
+                      <td className="py-2 px-3.5 sm:px-4.5">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             isPemasukan
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : 'bg-rose-50 text-rose-800 border border-rose-200'
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-300/80'
+                              : 'bg-rose-50 text-rose-800 border border-rose-300/80'
                           }`}
                         >
                           <span
@@ -1348,26 +1294,38 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
                           {isPemasukan ? 'Kas Masuk' : 'Kas Keluar'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 sm:px-6 text-center font-medium text-slate-600">
-                        {cat.jumlah} kali
+
+                      {/* Frekuensi Transaksi */}
+                      <td className="py-2 px-3.5 sm:px-4.5 text-center">
+                        <span className="inline-block bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded border border-slate-200/80 text-[11px] font-mono">
+                          {cat.jumlah} kali
+                        </span>
                       </td>
-                      <td
-                        className={`py-3.5 px-5 sm:px-6 text-right font-extrabold text-sm ${
-                          isPemasukan ? 'text-emerald-700' : 'text-rose-600'
-                        }`}
-                      >
-                        {isPemasukan ? '+ ' : '- '}
-                        {formatRupiahClean(cat.nominal)}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
+
+                      {/* Total Nominal */}
+                      <td className="py-2 px-3.5 sm:px-4.5 text-right">
                         <span
-                          className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all ${
-                            isSelected
-                              ? 'bg-emerald-700 text-white shadow-2xs'
-                              : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                          className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded border ${
+                            isPemasukan
+                              ? 'text-emerald-700 bg-emerald-50/70 border-emerald-200/80'
+                              : 'text-rose-600 bg-rose-50/70 border-rose-200/80'
                           }`}
                         >
-                          {isSelected ? 'Tutup' : 'Lihat Detail'}
+                          {isPemasukan ? '+ ' : '- '}
+                          {formatRupiahClean(cat.nominal)}
+                        </span>
+                      </td>
+
+                      {/* Aksi Detail */}
+                      <td className="py-2 px-3 text-center">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md transition-all ${
+                            isSelected
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs'
+                              : 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 shadow-2xs'
+                          }`}
+                        >
+                          {isSelected ? 'Tutup' : 'Lihat'}
                           {isSelected ? (
                             <ChevronDown className="w-3 h-3" />
                           ) : (
@@ -1382,21 +1340,28 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
             </tbody>
             {categoryBreakdown.length > 0 && (
               <tfoot>
-                <tr className="bg-slate-50 font-extrabold text-xs text-slate-900 border-t border-slate-200">
-                  <td className="py-3.5 px-5 sm:px-6" colSpan={2}>
-                    Total Selisih Bersih (Total Masuk - Total Keluar):
+                <tr className="bg-slate-900 text-white font-extrabold text-xs border-t-2 border-indigo-500/40">
+                  <td className="py-2.5 px-3.5 sm:px-4.5 text-slate-200" colSpan={2}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                      <span>Total Selisih Bersih (Total Masuk - Total Keluar):</span>
+                    </div>
                   </td>
-                  <td className="py-3.5 px-5 sm:px-6 text-center text-slate-500">
+                  <td className="py-2.5 px-3.5 sm:px-4.5 text-center text-slate-300 font-mono text-[11px]">
                     {filteredTransactions.length} Total Transaksi
                   </td>
-                  <td
-                    className={`py-3.5 px-5 sm:px-6 text-right text-sm font-black ${
-                      saldoAkhir >= 0 ? 'text-emerald-700' : 'text-rose-600'
-                    }`}
-                  >
-                    {formatRupiahClean(saldoAkhir)}
+                  <td className="py-2.5 px-3.5 sm:px-4.5 text-right">
+                    <span
+                      className={`inline-block font-mono text-xs font-black px-2.5 py-0.5 rounded-lg border ${
+                        saldoAkhir >= 0
+                          ? 'text-emerald-400 bg-slate-950 border-emerald-500/40'
+                          : 'text-rose-400 bg-slate-950 border-rose-500/40'
+                      }`}
+                    >
+                      {formatRupiahClean(saldoAkhir)}
+                    </span>
                   </td>
-                  <td className="py-3.5 px-4"></td>
+                  <td className="py-2.5 px-3"></td>
                 </tr>
               </tfoot>
             )}
@@ -1496,17 +1461,17 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
-                  <th className="py-3 px-5 sm:px-6 w-40 whitespace-nowrap text-white font-bold bg-slate-950">Tanggal</th>
-                  <th className="py-3 px-5 sm:px-6 w-36 whitespace-nowrap text-white font-bold bg-slate-950">Jenis</th>
-                  <th className="py-3 px-5 sm:px-6 w-44 text-right whitespace-nowrap text-white font-bold bg-slate-950">Jumlah</th>
-                  <th className="py-3 px-5 sm:px-6 text-white font-bold bg-slate-950">Keterangan Lengkap</th>
+                <tr className="bg-slate-950 border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-200 font-black">
+                  <th className="py-2.5 px-3.5 sm:px-4.5 w-36 whitespace-nowrap text-white font-bold bg-slate-950">Tanggal</th>
+                  <th className="py-2.5 px-3.5 sm:px-4.5 w-32 whitespace-nowrap text-white font-bold bg-slate-950">Jenis</th>
+                  <th className="py-2.5 px-3.5 sm:px-4.5 w-40 text-right whitespace-nowrap text-white font-bold bg-slate-950">Jumlah</th>
+                  <th className="py-2.5 px-3.5 sm:px-4.5 text-white font-bold bg-slate-950">Keterangan Lengkap</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
+              <tbody className="divide-y divide-slate-100 text-xs">
                 {categoryDetailTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-10 text-center text-slate-400">
+                    <td colSpan={4} className="py-8 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center gap-1.5">
                         <Info className="w-5 h-5 text-slate-300" />
                         <span className="text-xs">
@@ -1516,22 +1481,27 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  categoryDetailTransactions.map((item) => {
+                  categoryDetailTransactions.map((item, idx) => {
                     const isMasuk = item.type === 'Masuk';
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr
+                        key={item.id}
+                        className={`transition-colors ${
+                          idx % 2 === 0 ? 'bg-white hover:bg-slate-50/80' : 'bg-slate-50/40 hover:bg-slate-100/70'
+                        }`}
+                      >
                         {/* Tanggal */}
-                        <td className="py-3.5 px-5 sm:px-6 font-semibold text-slate-800 whitespace-nowrap">
+                        <td className="py-2 px-3.5 sm:px-4.5 font-semibold text-slate-800 whitespace-nowrap text-xs">
                           {formatTanggalIndo(item.date)}
                         </td>
 
                         {/* Jenis */}
-                        <td className="py-3.5 px-5 sm:px-6 whitespace-nowrap">
+                        <td className="py-2 px-3.5 sm:px-4.5 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               isMasuk
-                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-800 border border-rose-200'
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300/80'
+                                : 'bg-rose-50 text-rose-800 border border-rose-300/80'
                             }`}
                           >
                             <span
@@ -1545,7 +1515,7 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
 
                         {/* Jumlah */}
                         <td
-                          className={`py-3.5 px-5 sm:px-6 text-right font-extrabold text-sm whitespace-nowrap ${
+                          className={`py-2 px-3.5 sm:px-4.5 text-right font-mono font-black text-xs whitespace-nowrap ${
                             isMasuk ? 'text-emerald-700' : 'text-rose-600'
                           }`}
                         >
@@ -1554,9 +1524,9 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
                         </td>
 
                         {/* Keterangan Lengkap */}
-                        <td className="py-3.5 px-5 sm:px-6 text-slate-700 leading-relaxed font-normal whitespace-pre-wrap break-words">
+                        <td className="py-2 px-3.5 sm:px-4.5 text-slate-700 leading-snug font-normal whitespace-pre-wrap break-words text-xs">
                           {item.description && item.description.trim().length > 0 ? (
-                            highlightText(item.description, detailSearchKeterangan || searchKeterangan)
+                            highlightText(item.description, detailSearchKeterangan)
                           ) : (
                             <span className="text-slate-400 italic">(Tanpa keterangan)</span>
                           )}
@@ -1568,19 +1538,19 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
               </tbody>
               {categoryDetailTransactions.length > 0 && (
                 <tfoot>
-                  <tr className="bg-slate-50 font-bold text-xs text-slate-900 border-t border-slate-200">
-                    <td className="py-3 px-5 sm:px-6" colSpan={2}>
+                  <tr className="bg-slate-900 text-white font-bold text-xs border-t-2 border-slate-700">
+                    <td className="py-2 px-3.5 sm:px-4.5 text-slate-300" colSpan={2}>
                       Total Akumulasi Periode:
                     </td>
                     <td
-                      className={`py-3 px-5 sm:px-6 text-right text-sm font-black whitespace-nowrap ${
-                        categoryDetailSummary.net >= 0 ? 'text-emerald-700' : 'text-rose-600'
+                      className={`py-2 px-3.5 sm:px-4.5 text-right text-xs font-mono font-black whitespace-nowrap ${
+                        categoryDetailSummary.net >= 0 ? 'text-emerald-400' : 'text-rose-400'
                       }`}
                     >
                       {categoryDetailSummary.net >= 0 ? '+ ' : ''}
                       {formatRupiahClean(categoryDetailSummary.net)}
                     </td>
-                    <td className="py-3 px-5 sm:px-6 text-slate-500 font-medium">
+                    <td className="py-2 px-3.5 sm:px-4.5 text-slate-300 text-[11px] font-normal">
                       {categoryDetailSummary.totalCount} transaksi tercatat pada kategori {selectedCategoryDetail}
                     </td>
                   </tr>

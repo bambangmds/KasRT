@@ -169,25 +169,14 @@ const checkAndSyncEnvironmentAndClearCache = () => {
   const lastSavedUrl = localStorage.getItem(LAST_ENV_URL_KEY) || '';
   const lastSavedKey = localStorage.getItem(LAST_ENV_KEY_KEY) || '';
 
-  // If environment variables changed (or running for the first time with a valid config),
-  // clear out stale local storage cache overrides so everything is cleanly fetched from the active database.
+  // If environment variables changed, update the signature keys without wiping user data
   if (
     cleanCurrentUrl && 
     cleanCurrentKey && 
     (lastSavedUrl !== cleanCurrentUrl || lastSavedKey !== cleanCurrentKey)
   ) {
     console.log('[SUPABASE ENV SYNC] Menggunakan konfigurasi database dari file .env proyek...');
-    
-    // Clear stale cached items to force a clean re-fetch from the database
-    localStorage.removeItem('kas_rt_sekretariat');
-    localStorage.removeItem('kas_rt_transactions');
-    localStorage.removeItem('kas_rt_categories');
-    localStorage.removeItem('kas_rt_categories_v2');
-    localStorage.removeItem('kas_rt_pengurus');
-    localStorage.removeItem('kas_rt_data_warga');
-    localStorage.removeItem('rt_konfirmasi_kode');
-
-    // Save the new signatures to prevent repeated wipes
+    // Save the new signatures to prevent repeated log messages
     localStorage.setItem(LAST_ENV_URL_KEY, cleanCurrentUrl);
     localStorage.setItem(LAST_ENV_KEY_KEY, cleanCurrentKey);
   }
@@ -445,8 +434,45 @@ export const fetchKasFromSupabase = async (): Promise<{
       return { data: null, error: formatFriendlySupabaseError(error) };
     }
 
-    const transactions = (data as SupabaseKasRow[]).map(mapRowToTransaction);
-    return { data: transactions, error: null };
+    const dbTransactions = (data as SupabaseKasRow[]).map(mapRowToTransaction);
+    
+    // Sinkronisasi & gabungkan dengan transaksi lokal yang belum ter-upload di Supabase
+    let mergedTransactions = [...dbTransactions];
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const saved = localStorage.getItem('kas_rt_transactions');
+        if (saved) {
+          const localList: Transaction[] = JSON.parse(saved);
+          if (Array.isArray(localList) && localList.length > 0) {
+            const dbIds = new Set(dbTransactions.map((t) => t.id));
+            const unsyncedLocals = localList.filter((localTx) => {
+              if (!localTx || !localTx.id) return false;
+              if (dbIds.has(localTx.id)) return false;
+              const isDuplicate = dbTransactions.some(
+                (d) =>
+                  d.date === localTx.date &&
+                  d.category === localTx.category &&
+                  d.amount === localTx.amount &&
+                  d.description === localTx.description
+              );
+              return !isDuplicate;
+            });
+
+            if (unsyncedLocals.length > 0) {
+              console.log(`[Supabase Fetch] Menggabungkan ${unsyncedLocals.length} transaksi lokal belum tersimpan di Supabase.`);
+              mergedTransactions = [
+                ...unsyncedLocals.map((t) => ({ ...t, status: 'Synced' as const })),
+                ...mergedTransactions,
+              ];
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Supabase Merge Notice]', e);
+    }
+
+    return { data: mergedTransactions, error: null };
   } catch (err: any) {
     console.error('[Supabase Fetch Exception]', err);
     return { data: null, error: formatFriendlySupabaseError(err) };

@@ -140,7 +140,7 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   // Transaksi Iuran Form State
-  const [paymentMode, setPaymentMode] = useState<'tunggal' | 'serempak'>('tunggal');
+  const [paymentMode, setPaymentMode] = useState<'serempak' | 'tunggal'>('serempak');
   const [selectedWargaIds, setSelectedWargaIds] = useState<string[]>([]);
   const [selectedWargaId, setSelectedWargaId] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Iuran Warga');
@@ -403,28 +403,45 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
         const catPrefix = cleanCatLabel ? `${cleanCatLabel} ` : '';
         const fallbackDesc = `${catPrefix}(${paymentMonth} ${paymentYear}) - ${selectedWarga.nama_lengkap}`;
         
-        const { error } = await insertKasToSupabase({
+        const txPayload = {
           id: nextId,
           date: effectiveDate,
-          type: 'Masuk',
+          type: 'Masuk' as const,
           category: selectedCategory,
           amount: paymentAmount,
           description: paymentDescription || fallbackDesc,
           wargaId: selectedWargaId,
-        });
+        };
+
+        const { error } = await insertKasToSupabase(txPayload);
+
+        // Selalu simpan ke localStorage sebagai pertahanan cadangan agar input warga 100% tersimpan
+        try {
+          const rawLocal = localStorage.getItem('kas_rt_transactions');
+          const currentLocal = rawLocal ? JSON.parse(rawLocal) : [];
+          const newTxItem = {
+            ...txPayload,
+            status: error ? 'Error' : 'Synced',
+            createdAt: Date.now(),
+          };
+          const updatedLocal = [newTxItem, ...currentLocal.filter((t: any) => t.id !== nextId)];
+          localStorage.setItem('kas_rt_transactions', JSON.stringify(updatedLocal));
+        } catch (e) {
+          console.error('Failed fallback write to localStorage', e);
+        }
 
         if (error) {
-          onTriggerToast(`Gagal menyimpan iuran: ${error}`, 'error', 'Gagal Simpan');
+          onTriggerToast(`Pembayaran iuran tersimpan di penyimpanan perangkat. (Catatan Supabase: ${error})`, 'info', 'Tersimpan di Perangkat');
         } else {
           onTriggerToast(`Pembayaran iuran ${selectedWarga.nama_lengkap} sebesar ${formatSimpleRupiah(paymentAmount)} berhasil dicatat!`, 'success', 'Iuran Berhasil');
-          
-          setSelectedWargaId('');
-          setSearchWargaTerm('');
-          loadIuranHistory();
-          
-          if (onRefreshTransactions) {
-            onRefreshTransactions();
-          }
+        }
+        
+        setSelectedWargaId('');
+        setSearchWargaTerm('');
+        loadIuranHistory();
+        
+        if (onRefreshTransactions) {
+          onRefreshTransactions();
         }
       } else {
         // Serempak mode
@@ -451,39 +468,55 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
         const cleanCatLabel = selectedCategory.replace(/^iuran\s*/i, '');
         const catPrefix = cleanCatLabel ? `${cleanCatLabel} ` : '';
         
-        const promises = validWargaIds.map(wId => {
+        const bulkPayloads = validWargaIds.map(wId => {
           const warga = dataWarga.find(w => w.id === wId);
           const customDesc = `${catPrefix}(Bulan ${paymentMonth} ${paymentYear}) - ${warga?.nama_lengkap || 'Warga'}`;
-          return insertKasToSupabase({
+          return {
             id: crypto.randomUUID(),
             date: effectiveDate,
-            type: 'Masuk',
+            type: 'Masuk' as const,
             category: selectedCategory,
             amount: paymentAmount,
             description: customDesc,
             wargaId: wId,
-          });
+          };
         });
 
+        const promises = bulkPayloads.map(p => insertKasToSupabase(p));
         const results = await Promise.all(promises);
         const errors = results.filter(r => r.error).map(r => r.error);
 
+        // Selalu simpan seluruh baris serempak ke localStorage agar tidak hilang
+        try {
+          const rawLocal = localStorage.getItem('kas_rt_transactions');
+          const currentLocal = rawLocal ? JSON.parse(rawLocal) : [];
+          const newItems = bulkPayloads.map(p => ({
+            ...p,
+            status: 'Synced',
+            createdAt: Date.now(),
+          }));
+          const updatedLocal = [...newItems, ...currentLocal];
+          localStorage.setItem('kas_rt_transactions', JSON.stringify(updatedLocal));
+        } catch (e) {
+          console.error('Failed bulk fallback write', e);
+        }
+
         if (errors.length > 0) {
-          onTriggerToast(`Gagal menyimpan beberapa iuran: ${errors[0]}`, 'error', 'Sebagian Gagal');
+          onTriggerToast(`Pembayaran serempak tersimpan di penyimpanan perangkat. (${errors.length} item memerlukan sync Supabase)`, 'info', 'Tersimpan di Perangkat');
         } else {
           let successMessage = `Pembayaran iuran serempak untuk ${validWargaIds.length} warga sebesar ${formatSimpleRupiah(paymentAmount)}/warga berhasil dicatat!`;
           if (skippedCount > 0) {
             successMessage += ` (${skippedCount} warga dilewati karena sudah lunas)`;
           }
           onTriggerToast(successMessage, 'success', 'Iuran Serempak Berhasil');
-          
-          setSelectedWargaIds([]);
-          setSearchWargaTerm('');
-          loadIuranHistory();
-          
-          if (onRefreshTransactions) {
-            onRefreshTransactions();
-          }
+        }
+        
+        setSelectedWargaIds([]);
+        setSearchWargaTerm('');
+        loadIuranHistory();
+        
+        if (onRefreshTransactions) {
+          onRefreshTransactions();
         }
       }
     } catch (err: any) {
@@ -560,21 +593,6 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setPaymentMode('tunggal');
-                  setSelectedWargaIds([]);
-                  setSearchWargaTerm('');
-                }}
-                className={`flex-1 py-2.5 rounded-lg text-center transition-all cursor-pointer ${
-                  paymentMode === 'tunggal'
-                    ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/30 ring-1 ring-orange-400/50 font-black'
-                    : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50/60 font-bold'
-                }`}
-              >
-                1. Bayar Tunggal (Perorangan)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   setPaymentMode('serempak');
                   setSelectedWargaId('');
                   setSearchWargaTerm('');
@@ -585,8 +603,90 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
                     : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50/60 font-bold'
                 }`}
               >
-                2. Bayar Serempak (Banyak Warga)
+                1. Bayar Serempak
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMode('tunggal');
+                  setSelectedWargaIds([]);
+                  setSearchWargaTerm('');
+                }}
+                className={`flex-1 py-2.5 rounded-lg text-center transition-all cursor-pointer ${
+                  paymentMode === 'tunggal'
+                    ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white shadow-md shadow-orange-500/30 ring-1 ring-orange-400/50 font-black'
+                    : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50/60 font-bold'
+                }`}
+              >
+                2. Bayar PerOrangan
+              </button>
+            </div>
+
+            {/* Periode Tagihan, Tanggal Pencatatan & Pos Kategori (Dipindahkan ke atas di atas Pilih Warga Penyetor) */}
+            <div className="p-3 bg-gradient-to-r from-indigo-50/70 via-blue-50/40 to-slate-50/60 border border-indigo-100/90 rounded-2xl space-y-3 shadow-2xs">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                {/* Bulan Tagihan */}
+                <div className="space-y-1 sm:col-span-4">
+                  <label className="block text-[11px] font-bold text-slate-700">Bulan Tagihan</label>
+                  <select
+                    value={paymentMonth}
+                    onChange={(e) => handlePaymentMonthChange(e.target.value)}
+                    className="w-full p-2 text-xs bg-slate-900 border border-slate-800 hover:bg-slate-950 text-white rounded-xl focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 outline-none cursor-pointer font-bold shadow-xs transition-all"
+                  >
+                    {BULAN_LIST.map((b) => (
+                      <option key={b} value={b} className="bg-slate-900 text-white font-semibold">{b}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tahun */}
+                <div className="space-y-1 sm:col-span-3">
+                  <label className="block text-[11px] font-bold text-slate-700">Tahun</label>
+                  <select
+                    value={paymentYear}
+                    onChange={(e) => handlePaymentYearChange(e.target.value)}
+                    className="w-full p-2 text-xs bg-slate-900 border border-slate-800 hover:bg-slate-950 text-white rounded-xl focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 outline-none cursor-pointer font-bold shadow-xs transition-all"
+                  >
+                    {TAHUN_LIST.map((y) => (
+                      <option key={y} value={y} className="bg-slate-900 text-white font-semibold">{y}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tanggal Pencatatan */}
+                <div className="space-y-1 sm:col-span-5">
+                  <label className="block text-[11px] font-bold text-slate-700">Tanggal Pencatatan</label>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full p-2 text-xs bg-slate-900 border border-slate-800 hover:bg-slate-950 text-white rounded-xl focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all outline-none font-bold shadow-xs [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+
+              {/* Pos Kategori */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-700">Pos Kategori Iuran</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    const catName = e.target.value;
+                    setSelectedCategory(catName);
+                    const matchedCat = categories.find((c) => c.name === catName && c.type === 'Masuk');
+                    if (matchedCat && matchedCat.nominal !== undefined && matchedCat.nominal > 0) {
+                      setPaymentAmount(matchedCat.nominal);
+                    } else {
+                      setPaymentAmount(getStoredDefaultAmount(catName));
+                    }
+                  }}
+                  className="w-full p-2 text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-black text-indigo-900 cursor-pointer shadow-2xs"
+                >
+                  {availableCategories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Mode 1: Tunggal Selector */}
@@ -770,57 +870,6 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
               </div>
             )}
 
-            {/* Periode & Kategori Pos */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-              <div className="space-y-1 sm:col-span-4">
-                <label className="block text-[11px] font-bold text-slate-700">Bulan Tagihan</label>
-                <select
-                  value={paymentMonth}
-                  onChange={(e) => handlePaymentMonthChange(e.target.value)}
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none cursor-pointer"
-                >
-                  {BULAN_LIST.map(b => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1 sm:col-span-2">
-                <label className="block text-[11px] font-bold text-slate-700">Tahun</label>
-                <select
-                  value={paymentYear}
-                  onChange={(e) => handlePaymentYearChange(e.target.value)}
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none cursor-pointer"
-                >
-                  {TAHUN_LIST.map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1 sm:col-span-6">
-                <label className="block text-[11px] font-bold text-slate-700">Pos Kategori</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    const catName = e.target.value;
-                    setSelectedCategory(catName);
-                    const matchedCat = categories.find(c => c.name === catName && c.type === 'Masuk');
-                    if (matchedCat && matchedCat.nominal !== undefined && matchedCat.nominal > 0) {
-                      setPaymentAmount(matchedCat.nominal);
-                    } else {
-                      setPaymentAmount(getStoredDefaultAmount(catName));
-                    }
-                  }}
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-bold text-indigo-900 cursor-pointer"
-                >
-                  {availableCategories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             {/* Nominal Form */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700 flex justify-between">
@@ -874,17 +923,7 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
               </div>
             </div>
 
-            {/* Tanggal Transaksi & Uraian Keterangan */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">Tanggal Pencatatan</label>
-              <input
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-medium"
-              />
-            </div>
-
+            {/* Uraian Keterangan Transaksi */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700">Uraian / Keterangan Transaksi</label>
               <textarea

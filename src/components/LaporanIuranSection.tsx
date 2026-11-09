@@ -7,7 +7,6 @@ import {
   Coins, 
   Search, 
   Copy, 
-  RefreshCw, 
   Calendar, 
   CreditCard,
   Filter,
@@ -77,9 +76,8 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
 
   // Data Warga State
   const [dataWarga, setDataWarga] = useState<DataWargaItem[]>([]);
-  const [isLoadingWarga, setIsLoadingWarga] = useState<boolean>(false);
+  const [, setIsLoadingWarga] = useState<boolean>(false);
   const [localTxList, setLocalTxList] = useState<any[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Available categories for filter
   const availableCategories = useMemo(() => {
@@ -92,8 +90,18 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
     setIsLoadingWarga(true);
     try {
       const warga = await fetchDataWargaFromSupabase();
-      if (warga) {
+      if (warga && warga.length > 0) {
         setDataWarga(warga);
+      } else {
+        const savedWarga = localStorage.getItem('kas_rt_data_warga');
+        if (savedWarga) {
+          try {
+            const parsed = JSON.parse(savedWarga);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setDataWarga(parsed);
+            }
+          } catch {}
+        }
       }
 
       // Also get full transactions from Supabase or props
@@ -119,28 +127,38 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
     loadData();
   }, [connectionStatus]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadData();
-    if (onRefreshTransactions) {
-      await onRefreshTransactions();
-    }
-    setIsRefreshing(false);
-    onTriggerToast('Data laporan kepatuhan iuran berhasil disegarkan.', 'success');
-  };
-
   // Compute Active Transactions (combining prop transactions + localTxList)
   const allKasMasuk = useMemo(() => {
-    if (localTxList.length > 0) return localTxList;
-    return transactions.filter(t => t.type === 'Masuk').map(t => ({
-      id: t.id,
-      tanggal: t.date,
-      jenis: t.type,
-      kategori: t.category,
-      jumlah: t.amount,
-      keterangan: t.description,
-      warga_id: t.wargaId,
-    }));
+    const list: any[] = [];
+    const seenIds = new Set<string>();
+
+    if (Array.isArray(localTxList)) {
+      localTxList.forEach((t) => {
+        if (t && t.id) {
+          seenIds.add(String(t.id));
+          list.push(t);
+        }
+      });
+    }
+
+    if (Array.isArray(transactions)) {
+      transactions.forEach((t) => {
+        if (t && t.type === 'Masuk' && !seenIds.has(String(t.id))) {
+          seenIds.add(String(t.id));
+          list.push({
+            id: t.id,
+            tanggal: t.date,
+            jenis: t.type,
+            kategori: t.category,
+            jumlah: t.amount,
+            keterangan: t.description,
+            warga_id: t.wargaId,
+          });
+        }
+      });
+    }
+
+    return list;
   }, [localTxList, transactions]);
 
   // Clean person name helper
@@ -149,6 +167,63 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
       .toLowerCase()
       .replace(/^(bpk\.?|bapak\.?|ibu\.?|ibuk\.?|pak\.?|h\.?|hj\.?|sdr\.?|sdri\.?)\s+/i, '')
       .trim();
+
+  // Helper ekstraksi bulan dan tahun dari teks keterangan atau tanggal ISO
+  const extractMonthAndYearFromTx = (tx: any) => {
+    const desc = (tx.keterangan || '').toLowerCase();
+
+    // 1. Ekstraksi Tahun (4 Digit)
+    let year = '';
+    const yearMatch = desc.match(/(202\d|203\d)/);
+    if (yearMatch && yearMatch[1]) {
+      year = yearMatch[1];
+    } else if (tx.tanggal && tx.tanggal.includes('-')) {
+      year = tx.tanggal.split('-')[0];
+    }
+
+    // 2. Ekstraksi Bulan
+    let monthName = '';
+    const SHORT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'agu', 'sep', 'okt', 'nov', 'des'];
+
+    for (let i = 0; i < BULAN_LIST.length; i++) {
+      const fullM = BULAN_LIST[i].toLowerCase();
+      const shortM = SHORT_MONTHS[i];
+      if (
+        desc.includes(fullM) ||
+        desc.includes(`(${shortM}`) ||
+        desc.includes(` ${shortM} `) ||
+        desc.includes(`-${shortM}`) ||
+        desc.includes(`/${shortM}`)
+      ) {
+        monthName = BULAN_LIST[i];
+        break;
+      }
+    }
+
+    // Cek pattern "bulan 11" / "bulan 1"
+    if (!monthName) {
+      const monthNumMatch = desc.match(/bulan\s+(\d{1,2})/i);
+      if (monthNumMatch && monthNumMatch[1]) {
+        const numM = parseInt(monthNumMatch[1], 10);
+        if (!isNaN(numM) && numM >= 1 && numM <= 12) {
+          monthName = BULAN_LIST[numM - 1];
+        }
+      }
+    }
+
+    // Fallback dari tanggal transaksi (YYYY-MM-DD)
+    if (!monthName && tx.tanggal && tx.tanggal.includes('-')) {
+      const parts = tx.tanggal.split('-');
+      if (parts.length >= 2) {
+        const mIdx = parseInt(parts[1], 10) - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+          monthName = BULAN_LIST[mIdx];
+        }
+      }
+    }
+
+    return { monthName, year };
+  };
 
   // Hitung data kepatuhan iuran berdasarkan bulan, tahun, dan kategori terpilih
   const laporanKepatuhan = useMemo(() => {
@@ -163,68 +238,65 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
     const sudahBayar: any[] = [];
     const belumBayar: any[] = [];
 
-    dataWarga.forEach(warga => {
-      const cleanW = cleanPersonName(warga.nama_lengkap);
-
+    dataWarga.forEach((warga) => {
       // Cari apakah ada transaksi iuran yang cocok
-      const matchingTx = allKasMasuk.find(tx => {
-        if (tx.kategori === 'Saldo Pindahan' || tx.kategori === 'Saldo Awal') {
+      const matchingTx = allKasMasuk.find((tx) => {
+        if (!tx || tx.kategori === 'Saldo Pindahan' || tx.kategori === 'Saldo Awal') {
           return false;
         }
 
         const desc = (tx.keterangan || '').toLowerCase();
         let isWargaMatch = false;
 
-        if (tx.warga_id && tx.warga_id === warga.id) {
+        // A. Cek ID Warga
+        if (tx.warga_id && warga.id && String(tx.warga_id) === String(warga.id)) {
           isWargaMatch = true;
-        } else if (cleanW && cleanW.length >= 3 && desc.includes(cleanW)) {
+        }
+        // B. Cek NIK & No KK
+        else if (warga.nik && warga.nik.length >= 6 && warga.nik !== '-' && desc.includes(warga.nik.toLowerCase())) {
           isWargaMatch = true;
-        } else if (warga.nik && warga.nik.length >= 6 && warga.nik !== '-' && desc.includes(warga.nik)) {
+        } else if (warga.no_kk && warga.no_kk.length >= 6 && warga.no_kk !== '-' && desc.includes(warga.no_kk.toLowerCase())) {
           isWargaMatch = true;
-        } else if (warga.no_kk && warga.no_kk.length >= 6 && warga.no_kk !== '-' && desc.includes(warga.no_kk)) {
-          isWargaMatch = true;
+        }
+        // C. Cek Nama Warga
+        else if (warga.nama_lengkap) {
+          const fullW = warga.nama_lengkap.toLowerCase().trim();
+          const cleanW = cleanPersonName(warga.nama_lengkap);
+
+          if (desc.includes(fullW)) {
+            isWargaMatch = true;
+          } else if (cleanW && cleanW.length >= 3 && desc.includes(cleanW)) {
+            isWargaMatch = true;
+          } else {
+            const nameParts = cleanW.split(/\s+/).filter((p) => p.length >= 3);
+            if (nameParts.length > 0) {
+              const matchedCount = nameParts.filter((p) => desc.includes(p)).length;
+              if (matchedCount >= 1 && (nameParts.length === 1 || matchedCount >= Math.ceil(nameParts.length / 2))) {
+                isWargaMatch = true;
+              }
+            }
+          }
         }
 
         if (!isWargaMatch) return false;
 
         // Cek Kategori
-        if (reportCategory !== 'Semua Kategori' && tx.kategori !== reportCategory) {
-          return false;
+        if (reportCategory !== 'Semua Kategori') {
+          const catTx = (tx.kategori || '').toLowerCase();
+          const catReport = reportCategory.toLowerCase();
+
+          const isCatMatch =
+            catTx === catReport ||
+            catTx.includes(catReport) ||
+            catReport.includes(catTx) ||
+            (catReport.includes('iuran') && catTx.includes('iuran'));
+
+          if (!isCatMatch) return false;
         }
 
-        // Cek Bulan & Tahun: prioritas dari keterangan "Bulan <Nama>", fallback dari tanggal
-        const monthMatch = desc.match(/bulan\s+([a-z]+|\d{1,2})/i);
-        const yearMatch = desc.match(/(202\d|203\d)/);
-
-        let txMonthName = '';
-        let txYear = tx.tanggal ? tx.tanggal.split('-')[0] : '';
-
-        if (monthMatch && monthMatch[1]) {
-          const rawM = monthMatch[1].toLowerCase();
-          const foundIdx = BULAN_LIST.findIndex(b => b.toLowerCase() === rawM);
-          if (foundIdx >= 0) {
-            txMonthName = BULAN_LIST[foundIdx];
-          } else {
-            const numM = parseInt(rawM, 10);
-            if (!isNaN(numM) && numM >= 1 && numM <= 12) {
-              txMonthName = BULAN_LIST[numM - 1];
-            }
-          }
-        } else if (tx.tanggal && tx.tanggal.includes('-')) {
-          const parts = tx.tanggal.split('-');
-          if (parts.length >= 2) {
-            const mIdx = parseInt(parts[1], 10) - 1;
-            if (mIdx >= 0 && mIdx < 12) {
-              txMonthName = BULAN_LIST[mIdx];
-            }
-          }
-        }
-
-        if (yearMatch && yearMatch[1]) {
-          txYear = yearMatch[1];
-        }
-
-        return txMonthName.toLowerCase() === reportMonth.toLowerCase() && txYear === reportYear;
+        // Cek Bulan & Tahun
+        const { monthName, year } = extractMonthAndYearFromTx(tx);
+        return monthName.toLowerCase() === reportMonth.toLowerCase() && year === reportYear;
       });
 
       if (matchingTx) {
@@ -234,7 +306,7 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
           paymentAmount: matchingTx.jumlah,
           paymentCategory: matchingTx.kategori,
           paymentDescription: matchingTx.keterangan,
-          txId: matchingTx.id
+          txId: matchingTx.id,
         });
       } else {
         belumBayar.push(warga);
@@ -303,81 +375,71 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Header Banner */}
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-tr from-indigo-600 to-blue-600 text-white rounded-xl shadow-sm shadow-indigo-600/20">
-            <ClipboardList className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 text-base">Laporan Kepatuhan & Rekap Iuran Warga</h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Tinjau status kepatuhan setoran iuran per bulan, kelompok lunas, dan daftar tunggakan warga {wilayahShort}.
-            </p>
-          </div>
+      <div className="bg-white p-4.5 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3.5">
+        <div className="p-3 bg-gradient-to-tr from-indigo-600 to-blue-600 text-white rounded-xl shadow-sm shadow-indigo-600/20 shrink-0">
+          <ClipboardList className="w-6 h-6" />
         </div>
-
-        <div className="flex items-center gap-2 self-end md:self-auto">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing || isLoadingWarga}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-            title="Segarkan Data Laporan Iuran"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing || isLoadingWarga ? 'animate-spin text-indigo-600' : ''}`} />
-            <span>Segarkan</span>
-          </button>
+        <div>
+          <h3 className="font-bold text-slate-900 text-base">Laporan Kepatuhan & Rekap Iuran Warga</h3>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Tinjau status kepatuhan setoran iuran per bulan, kelompok lunas, dan daftar tunggakan warga {wilayahShort}.
+          </p>
         </div>
       </div>
 
-      {/* Filter Card */}
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+      {/* Filter Card - Modern Executive Dark Navy Tinted Frame */}
+      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4.5 sm:p-5 rounded-2xl shadow-md border border-indigo-900/70 text-white">
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-indigo-600" />
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Filter Periode & Kategori</span>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-indigo-600/40 text-indigo-200 border border-indigo-500/30 rounded-xl shadow-xs">
+              <Filter className="w-4 h-4 text-indigo-300" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-white uppercase tracking-wider block">Filter Periode & Kategori</span>
+              <span className="text-[10px] text-indigo-200/80 font-medium">Penyaringan data kepatuhan iuran warga</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto">
             {/* Month Dropdown */}
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 block uppercase">Bulan Tagihan</label>
+              <label className="text-[10px] font-bold text-indigo-200 block uppercase tracking-wider">Bulan Tagihan</label>
               <select
                 value={reportMonth}
                 onChange={(e) => setReportMonth(e.target.value)}
-                className="w-full sm:w-36 p-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-medium cursor-pointer"
+                className="w-full sm:w-36 p-2 text-xs bg-slate-800 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none font-semibold cursor-pointer shadow-inner"
               >
                 {BULAN_LIST.map(b => (
-                  <option key={b} value={b}>{b}</option>
+                  <option key={b} value={b} className="bg-slate-800 text-white">{b}</option>
                 ))}
               </select>
             </div>
 
             {/* Year Dropdown */}
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 block uppercase">Tahun</label>
+              <label className="text-[10px] font-bold text-indigo-200 block uppercase tracking-wider">Tahun</label>
               <select
                 value={reportYear}
                 onChange={(e) => setReportYear(e.target.value)}
-                className="w-full sm:w-28 p-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-medium cursor-pointer"
+                className="w-full sm:w-28 p-2 text-xs bg-slate-800 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none font-semibold cursor-pointer shadow-inner"
               >
                 {TAHUN_LIST.map(y => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y} className="bg-slate-800 text-white">{y}</option>
                 ))}
               </select>
             </div>
 
             {/* Category Dropdown */}
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-500 block uppercase">Pos Kategori Iuran</label>
+              <label className="text-[10px] font-bold text-indigo-200 block uppercase tracking-wider">Pos Kategori Iuran</label>
               <select
                 value={reportCategory}
                 onChange={(e) => setReportCategory(e.target.value)}
-                className="w-full sm:w-48 p-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-medium cursor-pointer"
+                className="w-full sm:w-48 p-2 text-xs bg-slate-800 text-white border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none font-semibold cursor-pointer shadow-inner"
               >
-                <option value="Semua Kategori">Semua Kategori Iuran</option>
+                <option value="Semua Kategori" className="bg-slate-800 text-white">Semua Kategori Iuran</option>
                 {availableCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat} className="bg-slate-800 text-white">{cat}</option>
                 ))}
               </select>
             </div>
@@ -385,7 +447,7 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
         </div>
 
         {/* Quick Search bar */}
-        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3">
+        <div className="mt-4 pt-4 border-t border-slate-800 flex items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input
@@ -393,14 +455,14 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
               value={searchWargaQuery}
               onChange={(e) => setSearchWargaQuery(e.target.value)}
               placeholder="Cari nama warga, NIK, atau No. KK pada laporan ini..."
-              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-800 text-white placeholder-slate-400 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all outline-none font-medium"
             />
           </div>
           {searchWargaQuery && (
             <button
               type="button"
               onClick={() => setSearchWargaQuery('')}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 cursor-pointer"
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer transition-colors shadow-2xs"
             >
               Reset
             </button>
@@ -408,64 +470,64 @@ export const LaporanIuranSection: React.FC<LaporanIuranSectionProps> = ({
         </div>
       </div>
 
-      {/* Metric Dashboard Cards */}
+      {/* Metric Dashboard Cards - Masing-masing Frame Berwarna Khas Berbeda */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Warga */}
-        <div className="bg-white p-4 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-between">
+        {/* Metric 1: Total Warga Terdata - Royal Indigo Theme */}
+        <div className="bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 p-4 sm:p-4.5 rounded-2xl border border-indigo-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider font-semibold">Total Warga Terdata</span>
-            <span className="text-xl font-black text-slate-800 mt-0.5 block">{dataWarga.length} KK</span>
-            <span className="text-[10px] text-slate-500 font-medium">Buku Data Warga {wilayahShort}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-indigo-200 uppercase tracking-wider block">Total Warga Terdata</span>
+            <span className="text-xl sm:text-2xl font-black text-white mt-0.5 block">{dataWarga.length} KK</span>
+            <span className="text-[10px] text-indigo-300 font-medium">Buku Data Warga {wilayahShort}</span>
           </div>
-          <div className="p-3 bg-slate-50 text-slate-500 rounded-xl">
+          <div className="p-3 bg-indigo-600/40 text-indigo-100 border border-indigo-400/30 rounded-xl shadow-xs shrink-0">
             <Users className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Metric 2: Sudah Bayar */}
-        <div className="bg-white p-4 rounded-2xl shadow-xs border border-emerald-200/80 bg-gradient-to-br from-white to-emerald-50/30 flex items-center justify-between">
+        {/* Metric 2: Sudah Lunas - Emerald Green Theme */}
+        <div className="bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900 p-4 sm:p-4.5 rounded-2xl border border-emerald-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold block uppercase tracking-wider text-emerald-700">Sudah Lunas</span>
-            <span className="text-xl font-black text-emerald-700 mt-0.5 block">
+            <span className="text-[10px] sm:text-xs font-bold block uppercase tracking-wider text-emerald-200">Sudah Lunas</span>
+            <span className="text-xl sm:text-2xl font-black text-white mt-0.5 block">
               {laporanKepatuhan.sudahBayar.length} KK
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-100/70 px-1.5 py-0.5 rounded-md ml-2 inline-block">
+              <span className="text-xs font-black text-emerald-950 bg-emerald-300 px-2 py-0.5 rounded-md ml-2 inline-block shadow-2xs">
                 {kepatuhanPercent}%
               </span>
             </span>
-            <span className="text-[10px] text-emerald-600 font-medium">Bulan {reportMonth} {reportYear}</span>
+            <span className="text-[10px] text-emerald-300 font-medium">Bulan {reportMonth} {reportYear}</span>
           </div>
-          <div className="p-3 bg-emerald-100/80 text-emerald-700 rounded-xl">
+          <div className="p-3 bg-emerald-600/40 text-emerald-100 border border-emerald-400/30 rounded-xl shadow-xs shrink-0">
             <CheckCircle className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Metric 3: Belum Bayar */}
-        <div className="bg-white p-4 rounded-2xl shadow-xs border border-rose-200/80 bg-gradient-to-br from-white to-rose-50/30 flex items-center justify-between">
+        {/* Metric 3: Belum Bayar (Tunggakan) - Crimson Rose Theme */}
+        <div className="bg-gradient-to-br from-rose-950 via-rose-900 to-slate-900 p-4 sm:p-4.5 rounded-2xl border border-rose-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold block uppercase tracking-wider text-rose-700">Belum Bayar (Tunggakan)</span>
-            <span className="text-xl font-black text-rose-700 mt-0.5 block">
+            <span className="text-[10px] sm:text-xs font-bold block uppercase tracking-wider text-rose-200">Belum Bayar (Tunggakan)</span>
+            <span className="text-xl sm:text-2xl font-black text-white mt-0.5 block">
               {laporanKepatuhan.belumBayar.length} KK
-              <span className="text-xs font-bold text-rose-600 bg-rose-100/70 px-1.5 py-0.5 rounded-md ml-2 inline-block">
+              <span className="text-xs font-black text-rose-950 bg-rose-300 px-2 py-0.5 rounded-md ml-2 inline-block shadow-2xs">
                 {dataWarga.length > 0 ? 100 - kepatuhanPercent : 0}%
               </span>
             </span>
-            <span className="text-[10px] text-rose-600 font-medium">Perlu Dikonfirmasi</span>
+            <span className="text-[10px] text-rose-300 font-medium">Perlu Dikonfirmasi</span>
           </div>
-          <div className="p-3 bg-rose-100/80 text-rose-700 rounded-xl">
+          <div className="p-3 bg-rose-600/40 text-rose-100 border border-rose-400/30 rounded-xl shadow-xs shrink-0">
             <XCircle className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Metric 4: Dana Terkumpul */}
-        <div className="bg-white p-4 rounded-2xl shadow-xs border border-indigo-200/80 bg-gradient-to-br from-white to-indigo-50/30 flex items-center justify-between">
+        {/* Metric 4: Dana Iuran Terkumpul - Amber Golden Theme */}
+        <div className="bg-gradient-to-br from-amber-950 via-amber-900 to-slate-900 p-4 sm:p-4.5 rounded-2xl border border-amber-700/80 shadow-md text-white flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold text-indigo-700 block uppercase tracking-wider">Dana Iuran Terkumpul</span>
-            <span className="text-xl font-black text-indigo-900 mt-0.5 block">
+            <span className="text-[10px] sm:text-xs font-bold text-amber-200 block uppercase tracking-wider">Dana Iuran Terkumpul</span>
+            <span className="text-xl sm:text-2xl font-black text-amber-300 mt-0.5 block">
               {formatSimpleRupiah(totalDanaTerkumpul)}
             </span>
-            <span className="text-[10px] text-indigo-600 font-medium">Pos: {reportCategory}</span>
+            <span className="text-[10px] text-amber-200/90 font-medium">Pos: {reportCategory}</span>
           </div>
-          <div className="p-3 bg-indigo-100/80 text-indigo-700 rounded-xl">
+          <div className="p-3 bg-amber-600/40 text-amber-100 border border-amber-400/30 rounded-xl shadow-xs shrink-0">
             <Coins className="w-5 h-5" />
           </div>
         </div>

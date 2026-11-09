@@ -309,12 +309,47 @@ export default function App() {
 
       if (data) {
         setConnectionStatus('connected');
-        setTransactions(data);
-        localStorage.setItem('kas_rt_transactions', JSON.stringify(data));
+        
+        // Cek apakah ada transaksi lokal yang belum ter-upload di Supabase dan unggah secara otomatis
+        let finalTxList = [...data];
+        const saved = localStorage.getItem('kas_rt_transactions');
+        if (saved) {
+          try {
+            const localList: Transaction[] = JSON.parse(saved);
+            if (Array.isArray(localList)) {
+              const dbIds = new Set(data.map((t) => t.id));
+              const unsyncedLocals = localList.filter((localTx) => {
+                if (!localTx || !localTx.id) return false;
+                if (dbIds.has(localTx.id)) return false;
+                const isDuplicate = data.some(
+                  (d) =>
+                    d.date === localTx.date &&
+                    d.category === localTx.category &&
+                    d.amount === localTx.amount &&
+                    d.description === localTx.description
+                );
+                return !isDuplicate;
+              });
+
+              if (unsyncedLocals.length > 0) {
+                console.log(`[Auto-Sync] Mengunggah ${unsyncedLocals.length} transaksi lokal ke Supabase...`);
+                insertMultipleKasToSupabase(unsyncedLocals).catch((e) =>
+                  console.warn('Auto-sync unsynced items notice:', e)
+                );
+                finalTxList = [...unsyncedLocals.map((t) => ({ ...t, status: 'Synced' as const })), ...finalTxList];
+              }
+            }
+          } catch (e) {
+            console.error('Error merging local storage cache', e);
+          }
+        }
+
+        setTransactions(finalTxList);
+        localStorage.setItem('kas_rt_transactions', JSON.stringify(finalTxList));
 
         if (forceNotice) {
           showToast(
-            `Berhasil memuat ${data.length} transaksi dari tabel 'kas_rt' Supabase.`,
+            `Berhasil memuat ${finalTxList.length} transaksi (termasuk sinkronisasi data lokal).`,
             'success',
             'Supabase Live'
           );
@@ -691,8 +726,16 @@ export default function App() {
       createdAt: Date.now(),
     };
 
-    // Optimistic UI update
-    setTransactions((prev) => [optimisticTx, ...prev]);
+    // Optimistic UI update & simpan LANGSUNG ke localStorage agar data 100% aman dan tidak hilang
+    setTransactions((prev) => {
+      const updated = [optimisticTx, ...prev];
+      try {
+        localStorage.setItem('kas_rt_transactions', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save optimistic transaction', e);
+      }
+      return updated;
+    });
 
     if (connectionStatus === 'connected') {
       const { data, error } = await insertKasToSupabase({
@@ -705,35 +748,45 @@ export default function App() {
       });
 
       if (error) {
-        // Mark as error
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === nextId ? { ...t, status: 'Error' } : t))
-        );
+        // Tetap simpan di penyimpanan lokal perangkat jika terjadi kendala Supabase
+        setTransactions((prev) => {
+          const updated = prev.map((t) => (t.id === nextId ? { ...t, status: 'Error' as const } : t));
+          try {
+            localStorage.setItem('kas_rt_transactions', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
         showToast(
-          `Gagal menyimpan ke Supabase: ${error}`,
-          'error',
-          'Gagal Insert Supabase'
+          `Transaksi tersimpan di penyimpanan lokal perangkat. (Supabase: ${error})`,
+          'info',
+          'Data Tersimpan di Perangkat'
         );
         return;
       }
 
       if (data) {
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === nextId ? { ...data, status: 'Synced' } : t))
-        );
+        setTransactions((prev) => {
+          const updated = prev.map((t) => (t.id === nextId ? { ...data, status: 'Synced' as const } : t));
+          try {
+            localStorage.setItem('kas_rt_transactions', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
         showToast(
           `Transaksi ${data.category} (${formatSimpleRupiah(data.amount)}) berhasil disimpan ke tabel kas_rt Supabase!`,
           'success',
-          'Data Tersimpan di Supabase'
+          'Data Tersimpan di Database'
         );
       }
     } else {
-      // Local storage cache until Supabase credentials activated
-      setTimeout(() => {
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === nextId ? { ...t, status: 'Synced' } : t))
-        );
-      }, 600);
+      // Penyimpanan lokal jika Supabase belum terhubung
+      setTransactions((prev) => {
+        const updated = prev.map((t) => (t.id === nextId ? { ...t, status: 'Synced' as const } : t));
+        try {
+          localStorage.setItem('kas_rt_transactions', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
 
       showToast(
         `Transaksi ${optimisticTx.category} (${formatSimpleRupiah(optimisticTx.amount)}) tersimpan di penyimpanan lokal. Silakan aktifkan Supabase untuk sinkronisasi live.`,
@@ -1183,52 +1236,6 @@ export default function App() {
           tabIndex={-1} 
           className="flex-1 pt-16 sm:pt-18 lg:pt-18 px-3.5 sm:px-6 lg:px-7 pb-10 max-w-7xl w-full mx-auto space-y-4 sm:space-y-5 lg:space-y-6 print:pt-0 print:px-0 print:pb-0 print:max-w-none outline-none"
         >
-          {/* Connected banner */}
-          {connectionStatus === 'connected' && transactions.length > 0 && (
-            <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl px-3.5 sm:px-4.5 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-xs print:hidden">
-              <div className="flex items-center gap-2 text-emerald-900 truncate">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="font-bold text-emerald-950 shrink-0">Supabase Live:</span>
-                <span className="text-emerald-800 text-[11.5px] truncate">
-                  Terhubung ke{' '}
-                  <code className="font-mono font-bold bg-white/80 px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-950">
-                    kas_rt
-                  </code>{' '}
-                  ({transactions.length} transaksi online).
-                </span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsSupabaseModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-50 border border-emerald-300 text-slate-800 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
-                  title="Cek Status Tabel & Sinkronkan Data Lokal ke Supabase"
-                >
-                  <Database className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Status Database & Sinkronisasi</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => loadTransactions(true)}
-                  disabled={isFetchingSupabase}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-emerald-100/60 border border-emerald-300 text-emerald-800 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
-                >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 text-emerald-600 ${
-                      isFetchingSupabase ? 'animate-spin' : ''
-                    }`}
-                  />
-                  <span>Segarkan Data</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-
-
           {/* Active Tab Views (Enforce RBAC: Non-admin users are strictly restricted to 'laporan-keuangan') */}
           {(activeTab === 'input-riwayat-transaksi' || activeTab === 'data-warga') && activeUser?.levelAkses === 'Admin' && (
             <InputRiwayatView
