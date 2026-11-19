@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Package, 
   Plus, 
@@ -35,7 +35,9 @@ import {
   CloudUpload,
   Printer,
   FileText,
-  MapPin
+  MapPin,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { InventarisItem, PeminjamanItem, DataWargaItem, SupabaseConnectionStatus } from '../types';
 import { 
@@ -200,9 +202,10 @@ export const InventarisRTView: React.FC<InventarisRTViewProps> = ({
   const [tableNotCreated, setTableNotCreated] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Pagination States
+  // Pagination & Scroll States
   const [currentAssetPage, setCurrentAssetPage] = useState(1);
-  const assetItemsPerPage = 8;
+  const [assetItemsPerPage, setAssetItemsPerPage] = useState<number>(12);
+  const assetTableScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [currentLoanPage, setCurrentLoanPage] = useState(1);
   const loanItemsPerPage = 8;
@@ -455,11 +458,28 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
   }, [assets, searchAssetQuery, filterAssetKondisi]);
 
   // Paginated Assets
-  const totalAssetPages = Math.ceil(filteredAssets.length / assetItemsPerPage) || 1;
+  const effectiveAssetPageSize = assetItemsPerPage === 0 ? Math.max(filteredAssets.length, 1) : assetItemsPerPage;
+  const totalAssetPages = Math.ceil(filteredAssets.length / effectiveAssetPageSize) || 1;
   const paginatedAssets = useMemo(() => {
+    if (assetItemsPerPage === 0) return filteredAssets;
     const start = (currentAssetPage - 1) * assetItemsPerPage;
     return filteredAssets.slice(start, start + assetItemsPerPage);
-  }, [filteredAssets, currentAssetPage]);
+  }, [filteredAssets, currentAssetPage, assetItemsPerPage]);
+
+  const scrollAssetTableTo = (direction: 'top' | 'bottom') => {
+    const el = assetTableScrollRef.current;
+    if (!el) return;
+    el.scrollTo({
+      top: direction === 'top' ? 0 : el.scrollHeight,
+      behavior: 'smooth',
+    });
+  };
+
+  useEffect(() => {
+    if (assetTableScrollRef.current) {
+      assetTableScrollRef.current.scrollTop = 0;
+    }
+  }, [currentAssetPage, assetItemsPerPage]);
 
   // Filter Loans
   const filteredLoans = useMemo(() => {
@@ -1143,25 +1163,77 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
               <p className="text-xs font-semibold">Memuat data inventaris & aset RT...</p>
             </div>
           ) : assetViewMode === 'table' ? (
-            /* TABEL BARIS RAPI KE KANAN */
-            <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-              <div className="overflow-x-auto">
+            /* TABEL BARIS RAPI KE KANAN - KOMPAK & WARNA MODERN */
+            <div className="bg-white rounded-2xl shadow-sm border border-indigo-200/70 overflow-hidden">
+              {/* Header Bar Modern di Atas Tabel */}
+              <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-2.5 border-b border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400 p-[1.5px] shadow-xs shrink-0">
+                    <div className="w-full h-full bg-slate-950 rounded-[6px] flex items-center justify-center text-cyan-300">
+                      <Package className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-extrabold text-white tracking-tight flex items-center gap-2">
+                      <span>Daftar Inventaris &amp; Aset RT</span>
+                      <span className="text-[10px] font-black text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-500/40 font-mono">
+                        {filteredAssets.length} Item
+                      </span>
+                    </h3>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] font-bold flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 font-mono">
+                    Baik: {filteredAssets.reduce((s, a) => s + (Number(a.jumlah_baik) || 0), 0)} unit
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-rose-950/80 text-rose-300 border border-rose-500/30 font-mono">
+                    Rusak: {filteredAssets.reduce((s, a) => s + (Number(a.jumlah_rusak) || 0), 0)} unit
+                  </span>
+                  {/* Tombol Cepat Scroll Atas / Bawah */}
+                  <div className="flex items-center gap-1 pl-1 border-l border-indigo-700/60">
+                    <button
+                      type="button"
+                      onClick={() => scrollAssetTableTo('top')}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white border border-slate-700 text-[10px] font-bold transition-colors cursor-pointer"
+                      title="Scroll tabel ke paling atas"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                      <span>Atas</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollAssetTableTo('bottom')}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white border border-slate-700 text-[10px] font-bold transition-colors cursor-pointer"
+                      title="Scroll tabel ke paling bawah"
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                      <span>Bawah</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                ref={assetTableScrollRef}
+                className="overflow-x-auto overflow-y-auto max-h-[300px] sm:max-h-[340px] scroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-indigo-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-indigo-500"
+              >
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
-                      <th className="py-2.5 px-3 text-white font-bold bg-slate-950">Nama Barang / Aset</th>
-                      <th className="py-2.5 px-3 text-center text-white font-bold bg-slate-950">Kondisi</th>
-                      <th className="py-2.5 px-3 text-center text-white font-bold bg-slate-950">Total Unit</th>
-                      <th className="py-2.5 px-3 text-center text-white font-bold bg-slate-950">Tersedia (Baik)</th>
-                      <th className="py-2.5 px-3 text-center text-white font-bold bg-slate-950">Rusak</th>
-                      <th className="py-2.5 px-3 text-white font-bold bg-slate-950">Lokasi Penyimpanan</th>
-                      <th className="py-2.5 px-3 text-center text-white font-bold bg-slate-950">Aksi & Peminjaman</th>
+                  <thead className="sticky top-0 z-10 shadow-xs">
+                    <tr className="bg-slate-950 border-b-2 border-indigo-500/50 text-[10px] uppercase tracking-wider text-indigo-100 font-black">
+                      <th className="py-2 px-2 text-center w-[1%] whitespace-nowrap text-indigo-200 font-bold bg-slate-950">No</th>
+                      <th className="py-2 px-2.5 text-white font-bold bg-slate-950">Nama Barang / Aset</th>
+                      <th className="py-2 px-1.5 text-center w-[1%] whitespace-nowrap text-white font-bold bg-slate-950">Kondisi</th>
+                      <th className="py-2 px-1.5 text-center w-[1%] whitespace-nowrap text-white font-bold bg-slate-950">Total</th>
+                      <th className="py-2 px-1.5 text-center w-[1%] whitespace-nowrap text-emerald-300 font-bold bg-slate-950">Tersedia</th>
+                      <th className="py-2 px-1.5 text-center w-[1%] whitespace-nowrap text-rose-300 font-bold bg-slate-950">Rusak</th>
+                      <th className="py-2 px-2.5 text-white font-bold bg-slate-950">Lokasi Penyimpanan</th>
+                      <th className="py-2 px-2.5 text-center w-[1%] whitespace-nowrap text-white font-bold bg-slate-950">Aksi &amp; Peminjaman</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
+                  <tbody className="divide-y divide-slate-100 font-medium leading-tight">
                     {paginatedAssets.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-400">
+                        <td colSpan={8} className="py-8 text-center text-slate-400">
                           <div className="flex flex-col items-center justify-center gap-2">
                             <Package className="w-10 h-10 text-slate-300" />
                             <p className="font-bold text-slate-600 text-sm">Tidak ada aset inventaris yang ditemukan</p>
@@ -1170,67 +1242,101 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
                         </td>
                       </tr>
                     ) : (
-                      paginatedAssets.map((asset) => {
+                      paginatedAssets.map((asset, idx) => {
                         const isFullyBaik = asset.jumlah_baik === asset.jumlah_total;
                         const hasGoodStock = asset.jumlah_baik > 0;
+                        const rowNum = (assetItemsPerPage === 0 ? 0 : (currentAssetPage - 1) * assetItemsPerPage) + idx + 1;
+                        const theme = getCardTheme(asset.nama_barang, asset.id);
                         return (
-                          <tr key={asset.id} className="hover:bg-slate-50/80 transition-colors">
-                            {/* Nama Barang */}
-                            <td className="py-2 px-3 font-extrabold text-slate-900 text-xs sm:text-sm capitalize whitespace-nowrap">
-                              {asset.nama_barang}
+                          <tr
+                            key={asset.id}
+                            className={`transition-colors duration-150 border-l-4 ${
+                              isFullyBaik
+                                ? 'border-l-emerald-500'
+                                : hasGoodStock
+                                ? 'border-l-sky-500'
+                                : 'border-l-rose-500'
+                            } ${
+                              idx % 2 === 0
+                                ? 'bg-white hover:bg-indigo-50/70'
+                                : 'bg-slate-50/70 hover:bg-indigo-50/80'
+                            }`}
+                          >
+                            {/* No */}
+                            <td className="py-1.5 px-2 text-center font-mono text-[10px] font-bold text-indigo-600 w-[1%] whitespace-nowrap">
+                              {String(rowNum).padStart(2, '0')}
                             </td>
 
-                            {/* Kondisi Badge */}
-                            <td className="py-2 px-3 text-center whitespace-nowrap">
-                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border inline-block ${
+                            {/* Nama Barang */}
+                            <td className="py-1.5 px-2.5 font-extrabold text-slate-900 text-xs capitalize whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-5 h-5 rounded-md ${theme.iconBg} flex items-center justify-center shrink-0`}>
+                                  <Package className="w-3 h-3 text-white" />
+                                </span>
+                                <span className="text-slate-900 font-bold">{asset.nama_barang}</span>
+                              </div>
+                            </td>
+
+                            {/* Kondisi Badge - Rapat */}
+                            <td className="py-1.5 px-1.5 text-center w-[1%] whitespace-nowrap">
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full border inline-flex items-center gap-1 ${
                                 isFullyBaik 
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
                                   : hasGoodStock 
-                                  ? 'bg-blue-50 text-blue-800 border-blue-200'
-                                  : 'bg-rose-50 text-rose-800 border-rose-200'
+                                  ? 'bg-sky-50 text-sky-700 border-sky-300'
+                                  : 'bg-rose-50 text-rose-700 border-rose-300'
                               }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${
+                                  isFullyBaik ? 'bg-emerald-500' : hasGoodStock ? 'bg-sky-500' : 'bg-rose-500'
+                                }`} />
                                 {asset.kondisi || 'Baik'}
                               </span>
                             </td>
 
-                            {/* Total Unit */}
-                            <td className="py-2 px-3 text-center font-mono font-extrabold text-slate-800 text-xs tabular-nums">
-                              {asset.jumlah_total}
+                            {/* Total Unit - Rapat */}
+                            <td className="py-1.5 px-1.5 text-center w-[1%] whitespace-nowrap">
+                              <span className="font-mono font-extrabold text-indigo-900 bg-indigo-50/80 border border-indigo-200/80 px-1.5 py-0.5 rounded text-[11px] tabular-nums">
+                                {asset.jumlah_total}
+                              </span>
                             </td>
 
-                            {/* Unit Baik / Tersedia */}
-                            <td className="py-2 px-3 text-center whitespace-nowrap">
-                              <span className={`font-mono font-black text-xs tabular-nums px-2 py-0.5 rounded ${
-                                asset.jumlah_baik > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'
+                            {/* Unit Baik / Tersedia - Rapat */}
+                            <td className="py-1.5 px-1.5 text-center w-[1%] whitespace-nowrap">
+                              <span className={`font-mono font-black text-[11px] tabular-nums px-1.5 py-0.5 rounded border ${
+                                asset.jumlah_baik > 0
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-slate-100 text-slate-400 border-slate-200'
                               }`}>
                                 {asset.jumlah_baik} unit
                               </span>
                             </td>
 
-                            {/* Unit Rusak */}
-                            <td className="py-2 px-3 text-center whitespace-nowrap">
-                              <span className={`font-mono font-bold text-xs tabular-nums px-2 py-0.5 rounded ${
-                                asset.jumlah_rusak > 0 ? 'bg-rose-50 text-rose-700 border border-rose-200 font-extrabold' : 'text-slate-400'
+                            {/* Unit Rusak - Rapat */}
+                            <td className="py-1.5 px-1.5 text-center w-[1%] whitespace-nowrap">
+                              <span className={`font-mono font-bold text-[11px] tabular-nums px-1.5 py-0.5 rounded ${
+                                asset.jumlah_rusak > 0
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200 font-extrabold'
+                                  : 'text-slate-400'
                               }`}>
                                 {asset.jumlah_rusak}
                               </span>
                             </td>
 
                             {/* Lokasi Penyimpanan */}
-                            <td className="py-2 px-3 text-slate-700 font-medium whitespace-nowrap">
-                              <div className="flex items-center gap-1.5">
-                                <Database className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <td className="py-1.5 px-2.5 text-slate-700 font-medium whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-700 border border-slate-200/70 text-[11px]">
+                                <MapPin className="w-3 h-3 text-indigo-500 shrink-0" />
                                 <span>{asset.lokasi_penyimpanan || 'Gudang Kantor RT'}</span>
-                              </div>
+                              </span>
                             </td>
 
                             {/* Actions Column */}
-                            <td className="py-2 px-3 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1.5">
+                            <td className="py-1.5 px-2.5 text-center w-[1%] whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditAsset(asset)}
-                                  className="p-1 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 transition-all cursor-pointer"
+                                  className="p-1 rounded-md text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 border border-indigo-200/60 transition-all cursor-pointer"
                                   title="Edit Data Barang"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
@@ -1238,7 +1344,7 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
                                 <button
                                   type="button"
                                   onClick={() => handleOpenDeleteAssetModal(asset)}
-                                  className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                                  className="p-1 rounded-md text-rose-500 bg-rose-50/50 hover:text-rose-700 hover:bg-rose-100 border border-rose-200/60 transition-all cursor-pointer"
                                   title="Hapus Barang Permanen"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1247,10 +1353,10 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
                                   type="button"
                                   onClick={() => handleOpenAddLoan(asset)}
                                   disabled={asset.jumlah_baik <= 0}
-                                  className="px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-600 hover:text-white text-indigo-700 font-extrabold text-[11px] transition-all cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  className="px-2 py-0.5 rounded-md bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold text-[10px] shadow-2xs transition-all cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                                   title="Pinjamkan Aset ke Warga"
                                 >
-                                  <UserCheck className="w-3.5 h-3.5" />
+                                  <UserCheck className="w-3 h-3" />
                                   <span>Pinjamkan</span>
                                 </button>
                               </div>
@@ -1263,18 +1369,37 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
                 </table>
               </div>
 
-              {/* Table Footer / Pagination */}
-              <div className="p-4 bg-slate-50/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 border-t border-slate-200">
-                <span>
-                  Menampilkan {paginatedAssets.length > 0 ? (currentAssetPage - 1) * assetItemsPerPage + 1 : 0}-
-                  {Math.min(currentAssetPage * assetItemsPerPage, filteredAssets.length)} dari {filteredAssets.length} data aset
-                </span>
+              {/* Table Footer / Pagination & Baris per Halaman */}
+              <div className="px-4 py-2.5 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-300 border-t border-indigo-500/30">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span>
+                    Menampilkan <strong className="text-white">{paginatedAssets.length > 0 ? (assetItemsPerPage === 0 ? 1 : (currentAssetPage - 1) * assetItemsPerPage + 1) : 0}-
+                    {assetItemsPerPage === 0 ? filteredAssets.length : Math.min(currentAssetPage * assetItemsPerPage, filteredAssets.length)}</strong> dari <strong className="text-cyan-300">{filteredAssets.length}</strong> data aset
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400">Baris:</span>
+                    <select
+                      value={assetItemsPerPage}
+                      onChange={(e) => {
+                        setAssetItemsPerPage(Number(e.target.value));
+                        setCurrentAssetPage(1);
+                      }}
+                      className="px-2 py-0.5 bg-slate-800 text-white border border-slate-700 rounded-md text-[11px] font-bold focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      title="Jumlah baris yang ditampilkan per halaman (gunakan Scroll atau Semua)"
+                    >
+                      <option value={8}>8 / hal</option>
+                      <option value={12}>12 / hal</option>
+                      <option value={25}>25 / hal</option>
+                      <option value={0}>Semua (Scroll)</option>
+                    </select>
+                  </div>
+                </div>
 
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setCurrentAssetPage((p) => Math.max(p - 1, 1))}
                     disabled={currentAssetPage === 1}
-                    className="px-3 py-1.5 bg-white rounded-lg shadow-2xs border border-slate-200 font-semibold text-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer hover:bg-slate-50"
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 font-semibold text-slate-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px]"
                   >
                     Sebelumnya
                   </button>
@@ -1283,10 +1408,10 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
                     <button
                       key={pg}
                       onClick={() => setCurrentAssetPage(pg)}
-                      className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer text-[11px] ${
                         currentAssetPage === pg
-                          ? 'bg-slate-900 text-white shadow-2xs'
-                          : 'bg-white text-slate-800 border border-slate-200 hover:bg-slate-100'
+                          ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-xs'
+                          : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'
                       }`}
                     >
                       {pg}
@@ -1296,7 +1421,7 @@ CREATE POLICY "Akses Publik Peminjaman Aset RT" ON peminjaman_aset_rt FOR ALL US
                   <button
                     onClick={() => setCurrentAssetPage((p) => Math.min(p + 1, totalAssetPages))}
                     disabled={currentAssetPage === totalAssetPages}
-                    className="px-3 py-1.5 bg-white rounded-lg shadow-2xs border border-slate-200 font-semibold text-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer hover:bg-slate-50"
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 font-semibold text-slate-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px]"
                   >
                     Selanjutnya
                   </button>

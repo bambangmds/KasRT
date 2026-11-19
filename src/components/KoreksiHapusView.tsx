@@ -14,13 +14,11 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Filter,
-  Copy,
   Calendar,
   Sparkles
 } from 'lucide-react';
 import { Transaction, TransactionType, CategoryItem } from '../types';
 import { CATEGORIES_BY_TYPE, INITIAL_CATEGORIES, formatSimpleRupiah, formatDateIndo } from '../data/initialData';
-import { useSekretariat } from '../context/SekretariatContext';
 
 interface KoreksiHapusViewProps {
   transactions: Transaction[];
@@ -43,14 +41,12 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
   onRefresh,
   isRefreshing = false,
 }) => {
-  const { wilayahShort, wilayahLabel } = useSekretariat();
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
   const [searchScope, setSearchScope] = useState<'all' | 'keterangan'>('all');
   const [filterType, setFilterType] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterDate, setFilterDate] = useState<string>('');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isAutoFixing, setIsAutoFixing] = useState(false);
 
   // Deteksi transaksi iuran yang nama bulannya di kolom keterangan berbeda dengan tanggal catat
@@ -188,7 +184,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 7;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   // Edit Modal State
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -301,12 +297,6 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
     }
   };
 
-  const handleCopyId = (id: string) => {
-    navigator.clipboard.writeText(id);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
   // Filter logic (Mendukung pencarian keterangan/uraian secara spesifik)
   const filtered = transactions.filter((tx) => {
     const term = searchTerm.toLowerCase().trim();
@@ -330,10 +320,32 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
     return matchSearch && matchType && matchCat && matchDate;
   });
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-  const paginated = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const totalPages =
+    itemsPerPage === 0 ? 1 : Math.ceil(filtered.length / itemsPerPage) || 1;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginated =
+    itemsPerPage === 0
+      ? filtered
+      : filtered.slice(
+          (safeCurrentPage - 1) * itemsPerPage,
+          safeCurrentPage * itemsPerPage
+        );
+
+  // Filtered totals for table summary bar
+  const filteredMasukNominal = useMemo(
+    () =>
+      filtered
+        .filter((t) => t.type === 'Masuk')
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [filtered]
+  );
+
+  const filteredKeluarNominal = useMemo(
+    () =>
+      filtered
+        .filter((t) => t.type === 'Keluar')
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [filtered]
   );
 
   // Quick stats
@@ -345,32 +357,36 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
     .filter((t) => t.type === 'Keluar')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
+  // Smart pagination page numbers (supports many pages cleanly without overflow)
+  const visiblePageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | 'ellipsis-start' | 'ellipsis-end')[] = [1];
+    const start = Math.max(2, safeCurrentPage - 1);
+    const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+    if (start > 2) pages.push('ellipsis-start');
+    for (let p = start; p <= end; p++) pages.push(p);
+    if (end < totalPages - 1) pages.push('ellipsis-end');
+    pages.push(totalPages);
+    return pages;
+  }, [totalPages, safeCurrentPage]);
+
   return (
     <div className="flex flex-col w-full space-y-6">
       {/* Top Section / Title & Action Toolbar */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
-              Audit & Koreksi Data
-            </span>
-            <span className="text-xs text-slate-500 hidden sm:inline">• {wilayahLabel}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Koreksi & Hapus Data Transaksi
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Perbaiki kesalahan input nominal, tanggal, kategori, atau hapus transaksi kas warga.
-          </p>
-        </div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          Koreksi & Hapus Data Transaksi
+        </h1>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-nowrap shrink-0 overflow-x-auto max-w-full">
           {onRefresh && (
             <button
               type="button"
               onClick={() => onRefresh()}
               disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 transition-all shadow-2xs cursor-pointer disabled:opacity-50 active:scale-98"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 transition-all shadow-2xs cursor-pointer disabled:opacity-50 active:scale-98 whitespace-nowrap shrink-0"
               title="Tarik data terbaru dari Supabase (kas_rt)"
             >
               <RefreshCw className={`w-4 h-4 text-emerald-600 shrink-0 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -385,7 +401,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
               const label = hasFilter ? `Filter Koreksi (${filtered.length} Data)` : undefined;
               onExport(filtered, label);
             }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm ring-1 ring-slate-700/50 cursor-pointer active:scale-98"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-indigo-900 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm ring-1 ring-slate-700/50 cursor-pointer active:scale-98 whitespace-nowrap shrink-0"
             title="Ekspor & Unduh Data (.xlsx, PDF, CSV, JSON)"
           >
             <Download className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -396,7 +412,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
             <button
               type="button"
               onClick={onOpenImport}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-emerald-600/20 hover:shadow-md cursor-pointer active:scale-98"
+              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-emerald-600/20 hover:shadow-md cursor-pointer active:scale-98 whitespace-nowrap shrink-0"
               title="Import Data Kas dari File Excel (.xlsx, .xls, .csv)"
             >
               <Upload className="w-4 h-4 text-emerald-100 shrink-0" />
@@ -485,8 +501,8 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
 
       {/* Search and Filter Bar */}
       <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-3">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          <div className="flex items-center gap-2 flex-1 max-w-xl">
+        <div className="flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
+          <div className="flex items-center gap-2 flex-1 min-w-0 xl:max-w-md">
             {/* Scope selector: Semua vs Khusus Keterangan/Uraian */}
             <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 shrink-0">
               <button
@@ -495,12 +511,12 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   setSearchScope('all');
                   setCurrentPage(1);
                 }}
-                className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                   searchScope === 'all'
                     ? 'bg-white text-slate-900 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
-                title="Cari di semua kolom (ID, Keterangan, dan Kategori)"
+                title="Cari di semua kolom (Keterangan dan Kategori)"
               >
                 Semua
               </button>
@@ -510,7 +526,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   setSearchScope('keterangan');
                   setCurrentPage(1);
                 }}
-                className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   searchScope === 'keterangan'
                     ? 'bg-emerald-700 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-emerald-700'
@@ -523,14 +539,14 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
             </div>
 
             {/* Input Pencarian dengan warna abu-abu tebal (bg-slate-800 border-slate-700) */}
-            <div className="relative flex-1 bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
+            <div className="relative flex-1 min-w-[160px] bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
               <input
                 type="text"
                 placeholder={
                   searchScope === 'keterangan'
                     ? 'Cari keterangan/uraian transaksi (cth: lampu, iuran, rapat)...'
-                    : 'Cari ID, keterangan, atau kategori...'
+                    : 'Cari kategori atau keterangan...'
                 }
                 value={searchTerm}
                 onChange={(e) => {
@@ -552,16 +568,16 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center justify-end gap-2 flex-wrap xl:flex-nowrap flex-1">
             {/* Tipe Filter Pill */}
-            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 shrink-0">
               <button
                 type="button"
                 onClick={() => {
                   setFilterType('');
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                   filterType === ''
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -575,7 +591,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   setFilterType('Masuk');
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                   filterType === 'Masuk'
                     ? 'bg-white text-emerald-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -589,7 +605,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   setFilterType('Keluar');
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                   filterType === 'Keluar'
                     ? 'bg-white text-rose-600 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -599,22 +615,6 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
               </button>
             </div>
 
-            <select
-              value={filterCategory}
-              onChange={(e) => {
-                setFilterCategory(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium"
-            >
-              <option value="">Semua Kategori</option>
-              {availableCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-
             <input
               type="date"
               value={filterDate}
@@ -622,7 +622,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                 setFilterDate(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 font-medium"
+              className="px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 font-medium shrink-0"
             />
 
             {(searchTerm || filterType || filterCategory || filterDate) && (
@@ -635,11 +635,27 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   setFilterDate('');
                   setCurrentPage(1);
                 }}
-                className="px-3 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer border border-rose-200"
+                className="px-3 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer border border-rose-200 whitespace-nowrap shrink-0"
               >
                 Reset Filter
               </button>
             )}
+
+            <select
+              value={filterCategory}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="ml-auto sm:ml-0 px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium max-w-[220px] shrink-0"
+            >
+              <option value="">Semua Kategori</option>
+              {availableCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -679,113 +695,167 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
       </div>
 
       {/* Transactions Table Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-indigo-200/70 overflow-hidden">
+        {/* Table Top Summary Bar */}
+        <div className="px-4 py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-b border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-slate-200">
+            <span className="font-bold text-white tracking-tight text-sm">
+              Daftar Transaksi Kas
+            </span>
+            <span aria-hidden="true" className="text-indigo-400">·</span>
+            <span className="font-mono tabular-nums text-indigo-200 font-semibold">
+              {filtered.length} catatan
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap text-[11px] font-mono tabular-nums">
+            <span className="text-emerald-300 font-semibold">
+              Masuk: {formatSimpleRupiah(filteredMasukNominal)}
+            </span>
+            <span aria-hidden="true" className="text-slate-600">|</span>
+            <span className="text-rose-300 font-semibold">
+              Keluar: {formatSimpleRupiah(filteredKeluarNominal)}
+            </span>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-950 border-b border-slate-800 text-[11px] uppercase tracking-wider text-white font-black">
-                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">ID Transaksi</th>
-                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Tanggal</th>
-                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Tipe</th>
-                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Kategori</th>
-                <th className="py-3 px-3.5 sm:px-4 text-right text-white font-bold bg-slate-950">Jumlah (Rp)</th>
-                <th className="py-3 px-3.5 sm:px-4 text-white font-bold bg-slate-950">Keterangan</th>
-                <th className="py-3 px-3.5 sm:px-4 text-center text-white font-bold bg-slate-950">Aksi</th>
+              <tr className="bg-slate-950 border-b-2 border-indigo-500/40 text-[11px] tracking-wide text-indigo-100 font-semibold">
+                <th className="py-2.5 px-2.5 text-center w-[1%] whitespace-nowrap text-indigo-300">
+                  No
+                </th>
+                <th className="py-2.5 px-3 w-[1%] whitespace-nowrap text-slate-200">
+                  Tanggal
+                </th>
+                <th className="py-2.5 px-2.5 text-center w-[1%] whitespace-nowrap text-slate-200">
+                  Tipe
+                </th>
+                <th className="py-2.5 px-3 min-w-[140px] max-w-[200px] text-indigo-200">
+                  Kategori
+                </th>
+                <th className="py-2.5 px-3 text-right w-[1%] whitespace-nowrap text-emerald-300">
+                  Jumlah (Rp)
+                </th>
+                <th className="py-2.5 px-3 min-w-[220px] text-slate-200">
+                  Keterangan
+                </th>
+                <th className="py-2.5 px-3 text-center w-[1%] whitespace-nowrap text-slate-200">
+                  Aksi
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 text-xs">
+            <tbody className="divide-y divide-slate-200/80 text-xs">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-10 text-center text-slate-500 bg-slate-50/40">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500">
                         <Filter className="w-4 h-4" />
                       </div>
-                      <p className="font-semibold text-slate-800">Tidak ada catatan transaksi yang sesuai</p>
-                      <p className="text-[11px] text-slate-400">Periksa kembali filter atau kata kunci pencarian Anda.</p>
+                      <p className="font-semibold text-slate-800 text-sm">
+                        Tidak ada catatan transaksi yang sesuai
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Periksa kembali filter atau kata kunci pencarian Anda.
+                      </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                paginated.map((tx) => {
+                paginated.map((tx, idx) => {
                   const isMasuk = tx.type === 'Masuk';
+                  const rowNum =
+                    (itemsPerPage === 0 ? 0 : (safeCurrentPage - 1) * itemsPerPage) +
+                    idx +
+                    1;
                   return (
                     <tr
                       key={tx.id}
-                      className="hover:bg-slate-50/80 transition-colors"
+                      className={`transition-colors duration-150 ${
+                        idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/75'
+                      } ${
+                        isMasuk
+                          ? 'hover:bg-emerald-50/55'
+                          : 'hover:bg-rose-50/50'
+                      }`}
                     >
-                      <td className="py-2.5 px-3.5 sm:px-4 font-semibold text-slate-900 whitespace-nowrap font-mono text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            title={tx.id}
-                            className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 border border-slate-200 inline-block font-mono text-[11px]"
-                          >
-                            {tx.id.length > 12 && tx.id.includes('-') ? `${tx.id.substring(0, 8)}...` : tx.id}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyId(tx.id)}
-                            className="text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                            title="Salin ID Transaksi"
-                          >
-                            {copiedId === tx.id ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
+                      {/* No */}
+                      <td className="py-2.5 px-2.5 align-top text-center w-[1%] whitespace-nowrap font-mono tabular-nums text-[11px] font-bold text-indigo-600/90">
+                        {String(rowNum).padStart(2, '0')}
                       </td>
-                      <td className="py-2.5 px-3.5 sm:px-4 text-slate-600 whitespace-nowrap font-medium">
+
+                      {/* Tanggal */}
+                      <td className="py-2.5 px-3 align-top w-[1%] whitespace-nowrap text-slate-700 font-medium tabular-nums">
                         {formatDateIndo(tx.date)}
                       </td>
-                      <td className="py-2.5 px-3.5 sm:px-4 whitespace-nowrap">
+
+                      {/* Tipe */}
+                      <td className="py-2.5 px-2.5 align-top text-center w-[1%] whitespace-nowrap">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
                             isMasuk
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : 'bg-rose-50 text-rose-800 border border-rose-200'
+                              ? 'bg-emerald-50/90 text-emerald-800 border-emerald-200/90'
+                              : 'bg-rose-50/90 text-rose-800 border-rose-200/90'
                           }`}
                         >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isMasuk ? 'bg-emerald-600' : 'bg-rose-500'
-                            }`}
-                          />
-                          {tx.type}
+                          {isMasuk ? (
+                            <ArrowDownLeft className="w-3 h-3 text-emerald-600 shrink-0" />
+                          ) : (
+                            <ArrowUpRight className="w-3 h-3 text-rose-600 shrink-0" />
+                          )}
+                          <span>{tx.type}</span>
                         </span>
                       </td>
-                      <td className="py-2.5 px-3.5 sm:px-4 font-semibold text-slate-900 whitespace-nowrap">
-                        {tx.category}
+
+                      {/* Kategori — otomatis turun ke bawah jika panjang */}
+                      <td className="py-2.5 px-3 align-top min-w-[140px] max-w-[200px] whitespace-normal break-words leading-snug">
+                        <span className="font-semibold text-slate-900 block">
+                          {highlightText(tx.category, searchScope === 'all' ? searchTerm : '')}
+                        </span>
                       </td>
-                      <td
-                        className={`py-2.5 px-3.5 sm:px-4 text-right whitespace-nowrap font-bold text-xs sm:text-sm ${
-                          isMasuk ? 'text-emerald-700' : 'text-rose-600'
-                        }`}
-                      >
-                        {formatSimpleRupiah(tx.amount)}
+
+                      {/* Jumlah (Rp) */}
+                      <td className="py-2.5 px-3 align-top text-right w-[1%] whitespace-nowrap">
+                        <span
+                          className={`inline-block font-mono tabular-nums font-bold text-xs sm:text-[13px] px-2 py-0.5 rounded-md ${
+                            isMasuk
+                              ? 'bg-emerald-50/80 text-emerald-800'
+                              : 'bg-rose-50/80 text-rose-700'
+                          }`}
+                        >
+                          {isMasuk ? '+' : '-'} {formatSimpleRupiah(tx.amount)}
+                        </span>
                       </td>
-                      <td
-                        className="py-2.5 px-3.5 sm:px-4 text-slate-600 max-w-xs sm:max-w-md truncate"
-                        title={tx.description}
-                      >
-                        {highlightText(tx.description, searchTerm)}
+
+                      {/* Keterangan — otomatis tampil penuh turun ke bawah sesuai kebutuhan */}
+                      <td className="py-2.5 px-3 align-top min-w-[220px] max-w-[380px] whitespace-normal break-words leading-relaxed text-slate-700">
+                        {tx.description ? (
+                          highlightText(tx.description, searchTerm)
+                        ) : (
+                          <span className="text-slate-400 italic">Tidak ada keterangan</span>
+                        )}
                       </td>
-                      <td className="py-2.5 px-3.5 sm:px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1">
+
+                      {/* Aksi */}
+                      <td className="py-2.5 px-3 align-top text-center w-[1%] whitespace-nowrap">
+                        <div className="inline-flex items-center justify-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => openEditModal(tx)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 hover:border-blue-700 shadow-2xs transition-colors duration-150 cursor-pointer"
                             title="Edit Transaksi Ini"
+                            aria-label="Edit Transaksi"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => openDeleteModal(tx.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white border border-red-600 hover:border-red-700 shadow-2xs transition-colors duration-150 cursor-pointer"
                             title="Hapus Transaksi Ini"
+                            aria-label="Hapus Transaksi"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -800,39 +870,81 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
         </div>
 
         {/* Table Footer / Pagination */}
-        <div className="p-4 sm:p-5 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 border-t border-slate-200">
-          <span>
-            Menampilkan {paginated.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-
-            {Math.min(currentPage * itemsPerPage, filtered.length)} dari {filtered.length} data transaksi
-          </span>
+        <div className="px-4 py-3 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300 border-t border-indigo-500/30">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="tabular-nums">
+              Menampilkan{' '}
+              <strong className="text-white">
+                {paginated.length > 0
+                  ? itemsPerPage === 0
+                    ? 1
+                    : (safeCurrentPage - 1) * itemsPerPage + 1
+                  : 0}
+                -
+                {itemsPerPage === 0
+                  ? filtered.length
+                  : Math.min(safeCurrentPage * itemsPerPage, filtered.length)}
+              </strong>{' '}
+              dari <strong className="text-indigo-300">{filtered.length}</strong> data transaksi
+            </span>
 
-          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="koreksi-rows-per-page" className="text-[11px] text-slate-400">
+                Baris:
+              </label>
+              <select
+                id="koreksi-rows-per-page"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 bg-slate-800 text-white border border-slate-700 rounded-lg text-[11px] font-semibold focus:outline-none focus:border-indigo-400 cursor-pointer"
+              >
+                <option value={10}>10 / hal</option>
+                <option value={20}>20 / hal</option>
+                <option value={50}>50 / hal</option>
+                <option value={0}>Semua</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
             <button
+              type="button"
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-white rounded-lg shadow-2xs border border-slate-200 font-semibold text-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer hover:bg-slate-50"
+              disabled={safeCurrentPage === 1}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 font-semibold text-slate-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px] whitespace-nowrap"
             >
               Sebelumnya
             </button>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-              <button
-                key={pg}
-                onClick={() => setCurrentPage(pg)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
-                  currentPage === pg
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'bg-white text-slate-800 border border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                {pg}
-              </button>
-            ))}
+            {visiblePageNumbers.map((item) =>
+              typeof item === 'number' ? (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setCurrentPage(item)}
+                  className={`min-w-[30px] px-2.5 py-1.5 rounded-lg font-bold transition-colors cursor-pointer text-[11px] tabular-nums ${
+                    safeCurrentPage === item
+                      ? 'bg-indigo-600 text-white shadow-xs border border-indigo-500'
+                      : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
+                  }`}
+                >
+                  {item}
+                </button>
+              ) : (
+                <span key={item} className="px-1 text-slate-500 select-none">
+                  ...
+                </span>
+              )
+            )}
 
             <button
+              type="button"
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-white rounded-lg shadow-2xs border border-slate-200 font-semibold text-slate-800 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer hover:bg-slate-50"
+              disabled={safeCurrentPage === totalPages}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 font-semibold text-slate-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px] whitespace-nowrap"
             >
               Selanjutnya
             </button>
