@@ -58,6 +58,17 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
 }) => {
   // Navigation Subtab State: Setoran Iuran Warga vs Entri Kas Umum
   const [activeSubTab, setActiveSubTab] = useState<'iuran-warga' | 'kas-umum'>('iuran-warga');
+  const [iuranRefreshTrigger, setIuranRefreshTrigger] = useState(0);
+  const [isIuranRefreshing, setIsIuranRefreshing] = useState(false);
+
+  const handleRefreshAll = () => {
+    if (activeSubTab === 'iuran-warga') {
+      setIuranRefreshTrigger((prev) => prev + 1);
+    }
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
 
   // Form States
   const { wilayahShort } = useSekretariat();
@@ -318,32 +329,45 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
         </div>
       </div>
 
-      {/* Subtab Navigation Bar: Setoran Iuran Warga vs Entri Kas Umum */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs">
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('iuran-warga')}
-          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-            activeSubTab === 'iuran-warga'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-1 ring-indigo-500/30 font-extrabold'
-              : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60'
-          }`}
-        >
-          <Coins className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'iuran-warga' ? 'text-indigo-100 scale-110' : 'text-slate-500'}`} />
-          <span>1. Setoran Iuran Warga</span>
-        </button>
+      {/* Subtab Navigation Bar: Setoran Iuran Warga vs Entri Kas Umum + Segarkan Data */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('iuran-warga')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              activeSubTab === 'iuran-warga'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-1 ring-indigo-500/30 font-extrabold'
+                : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60'
+            }`}
+          >
+            <Coins className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'iuran-warga' ? 'text-indigo-100 scale-110' : 'text-slate-500'}`} />
+            <span>1. Setoran Iuran Warga</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('kas-umum')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              activeSubTab === 'kas-umum'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 ring-1 ring-emerald-500/30 font-extrabold'
+                : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/60'
+            }`}
+          >
+            <ReceiptText className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'kas-umum' ? 'text-emerald-100 scale-110' : 'text-slate-500'}`} />
+            <span>2. Entri Kas Umum & Riwayat</span>
+          </button>
+        </div>
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('kas-umum')}
-          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-            activeSubTab === 'kas-umum'
-              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 ring-1 ring-emerald-500/30 font-extrabold'
-              : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/60'
-          }`}
+          onClick={handleRefreshAll}
+          disabled={isRefreshing || isIuranRefreshing || (activeSubTab === 'iuran-warga' && connectionStatus !== 'connected')}
+          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-all duration-150 shadow-xs flex items-center gap-2 text-xs font-semibold disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
+          title="Segarkan Data Transaksi, Iuran & Warga"
         >
-          <ReceiptText className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'kas-umum' ? 'text-emerald-100 scale-110' : 'text-slate-500'}`} />
-          <span>2. Entri Kas Umum & Riwayat</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${(isRefreshing || isIuranRefreshing) ? 'animate-spin text-emerald-400' : 'text-slate-300'}`} />
+          <span>Segarkan Data</span>
         </button>
       </div>
 
@@ -1062,6 +1086,8 @@ export const InputRiwayatView: React.FC<InputRiwayatViewProps> = ({
             onTriggerToast={onTriggerToast || (() => {})}
             onRefreshTransactions={onRefresh}
             categories={categories}
+            refreshTrigger={iuranRefreshTrigger}
+            onLoadingChange={setIsIuranRefreshing}
           />
         </div>
       )}
