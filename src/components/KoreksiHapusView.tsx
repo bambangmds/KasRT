@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Pencil, 
   Trash2, 
@@ -182,9 +182,40 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
     }
   }, []);
 
-  // Pagination State
+  // Pagination & Density State (default 0 = Semua data agar bisa langsung di-scroll semua dengan mouse)
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(0);
+  const [rowDensity, setRowDensity] = useState<'rapat' | 'normal'>('rapat');
+
+  // Table Scroll Ref & Smart Mouse Wheel Support (Vertical + Horizontal)
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const canScrollY = el.scrollHeight > el.clientHeight + 1;
+      const canScrollX = el.scrollWidth > el.clientWidth + 1;
+
+      if (
+        canScrollX &&
+        (e.shiftKey || !canScrollY) &&
+        Math.abs(e.deltaY) > Math.abs(e.deltaX)
+      ) {
+        const atLeftEdge = el.scrollLeft <= 0 && e.deltaY < 0;
+        const atRightEdge =
+          el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 && e.deltaY > 0;
+        if (!atLeftEdge && !atRightEdge) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
 
   // Edit Modal State
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -499,265 +530,311 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
         </div>
       </div>
 
-      {/* Search and Filter Bar */}
-      <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-3">
-        <div className="flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
-          <div className="flex items-center gap-2 flex-1 min-w-0 xl:max-w-md">
-            {/* Scope selector: Semua vs Khusus Keterangan/Uraian */}
-            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchScope('all');
-                  setCurrentPage(1);
-                }}
-                className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                  searchScope === 'all'
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Cari di semua kolom (Keterangan dan Kategori)"
-              >
-                Semua
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchScope('keterangan');
-                  setCurrentPage(1);
-                }}
-                className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
-                  searchScope === 'keterangan'
-                    ? 'bg-emerald-700 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-emerald-700'
-                }`}
-                title="Khusus memfilter berdasarkan uraian atau keterangan transaksi"
-              >
-                <span>Keterangan</span>
-                <span className="text-[10px] bg-emerald-800/40 px-1 py-0.2 rounded font-semibold hidden sm:inline">Uraian</span>
-              </button>
-            </div>
+      {/* Search and Filter Bar - Rich Sapphire / Indigo / Cyan Modern Frame */}
+      <div className="relative rounded-2xl shadow-lg shadow-indigo-950/15 border border-indigo-500/45 bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 text-white overflow-hidden">
+        {/* Subtle ambient glow accents */}
+        <div className="absolute -right-12 -top-12 w-44 h-44 bg-cyan-400/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-12 -bottom-12 w-40 h-40 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Input Pencarian dengan warna abu-abu tebal (bg-slate-800 border-slate-700) */}
-            <div className="relative flex-1 min-w-[160px] bg-slate-800 border border-slate-700 p-0.5 rounded-xl">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
-              <input
-                type="text"
-                placeholder={
-                  searchScope === 'keterangan'
-                    ? 'Cari keterangan/uraian transaksi (cth: lampu, iuran, rapat)...'
-                    : 'Cari kategori atau keterangan...'
-                }
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full pl-10 pr-8 py-2 bg-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-300 outline-none font-medium"
-              />
-              {searchTerm && (
+        <div className="relative p-3.5 sm:p-4 flex flex-col gap-3">
+          <div className="flex flex-col xl:flex-row gap-2.5 items-stretch xl:items-center justify-between">
+            <div className="flex items-center gap-2 flex-1 min-w-0 xl:max-w-lg">
+              {/* Scope selector: Semua vs Khusus Keterangan/Uraian */}
+              <div className="flex items-center bg-black/50 rounded-xl p-1 border border-indigo-400/35 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white cursor-pointer"
-                  title="Hapus pencarian"
+                  onClick={() => {
+                    setSearchScope('all');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    searchScope === 'all'
+                      ? 'bg-gradient-to-r from-cyan-400 to-sky-400 text-slate-950 shadow-sm'
+                      : 'text-indigo-200 hover:text-white hover:bg-indigo-900/60'
+                  }`}
+                  title="Cari di semua kolom (Keterangan dan Kategori)"
                 >
-                  <X className="w-4 h-4" />
+                  Semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchScope('keterangan');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                    searchScope === 'keterangan'
+                      ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-sm'
+                      : 'text-indigo-200 hover:text-white hover:bg-indigo-900/60'
+                  }`}
+                  title="Khusus memfilter berdasarkan uraian atau keterangan transaksi"
+                >
+                  <span>Keterangan</span>
+                  <span
+                    className={`text-[10px] px-1 py-0.2 rounded font-semibold hidden sm:inline ${
+                      searchScope === 'keterangan'
+                        ? 'bg-slate-950/20 text-slate-950'
+                        : 'bg-indigo-800/80 text-cyan-200'
+                    }`}
+                  >
+                    Uraian
+                  </span>
+                </button>
+              </div>
+
+              {/* Input Pencarian */}
+              <div className="relative flex-1 min-w-[160px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder={
+                    searchScope === 'keterangan'
+                      ? 'Cari keterangan/uraian transaksi (cth: lampu, iuran, rapat)...'
+                      : 'Cari kategori atau keterangan...'
+                  }
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-10 pr-8 py-2 bg-black/55 border border-cyan-400/40 rounded-xl text-xs sm:text-sm text-white placeholder:text-sky-200/60 focus:bg-black/75 focus:ring-2 focus:ring-amber-400/30 focus:border-amber-300 outline-none font-medium transition-all"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-300 hover:text-white cursor-pointer transition-colors"
+                    title="Hapus pencarian"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 flex-wrap xl:flex-nowrap flex-1">
+              {/* Tipe Filter Pill */}
+              <div className="flex items-center bg-black/50 rounded-xl p-1 border border-indigo-400/35 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterType('');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    filterType === ''
+                      ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 text-white shadow-sm'
+                      : 'text-indigo-200 hover:text-white hover:bg-indigo-900/60'
+                  }`}
+                >
+                  Semua Tipe
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterType('Masuk');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    filterType === 'Masuk'
+                      ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-sm'
+                      : 'text-indigo-200 hover:text-emerald-300 hover:bg-emerald-950/60'
+                  }`}
+                >
+                  Masuk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterType('Keluar');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    filterType === 'Keluar'
+                      ? 'bg-gradient-to-r from-amber-400 to-rose-500 text-slate-950 shadow-sm'
+                      : 'text-indigo-200 hover:text-rose-300 hover:bg-rose-950/60'
+                  }`}
+                >
+                  Keluar
+                </button>
+              </div>
+
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => {
+                  setFilterDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-2.5 py-2 bg-white/10 hover:bg-white/15 rounded-xl text-xs text-white outline-none focus:ring-2 focus:ring-cyan-400/35 border border-indigo-400/35 focus:border-cyan-400 font-semibold tabular-nums shrink-0 transition-all [color-scheme:dark]"
+              />
+
+              {(searchTerm || filterType || filterCategory || filterDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterType('');
+                    setFilterCategory('');
+                    setFilterDate('');
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-2 text-xs font-bold text-rose-200 bg-rose-500/20 hover:bg-rose-500/35 rounded-xl transition-colors cursor-pointer border border-rose-400/40 whitespace-nowrap shrink-0"
+                >
+                  Reset Filter
                 </button>
               )}
+
+              <select
+                value={filterCategory}
+                onChange={(e) => {
+                  setFilterCategory(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="ml-auto sm:ml-0 px-3 py-2 bg-cyan-500/15 hover:bg-cyan-500/25 rounded-xl text-xs text-cyan-100 outline-none focus:ring-2 focus:ring-cyan-400/35 border border-cyan-400/40 focus:border-cyan-300 cursor-pointer font-bold max-w-[220px] shrink-0 transition-all"
+              >
+                <option value="" className="bg-slate-900 text-white">Semua Kategori</option>
+                {availableCategories.map((cat) => (
+                  <option key={cat} value={cat} className="bg-slate-900 text-white font-medium">
+                    {cat}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 flex-wrap xl:flex-nowrap flex-1">
-            {/* Tipe Filter Pill */}
-            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterType('');
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                  filterType === ''
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Semua Tipe
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterType('Masuk');
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                  filterType === 'Masuk'
-                    ? 'bg-white text-emerald-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Masuk
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterType('Keluar');
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                  filterType === 'Keluar'
-                    ? 'bg-white text-rose-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Keluar
-              </button>
-            </div>
-
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => {
-                setFilterDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 font-medium shrink-0"
-            />
-
-            {(searchTerm || filterType || filterCategory || filterDate) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm('');
-                  setFilterType('');
-                  setFilterCategory('');
-                  setFilterDate('');
-                  setCurrentPage(1);
-                }}
-                className="px-3 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer border border-rose-200 whitespace-nowrap shrink-0"
-              >
-                Reset Filter
-              </button>
-            )}
-
-            <select
-              value={filterCategory}
-              onChange={(e) => {
-                setFilterCategory(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="ml-auto sm:ml-0 px-3 py-2 bg-slate-50 rounded-xl text-xs sm:text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-slate-900/10 border border-slate-200 focus:border-slate-400 cursor-pointer font-medium max-w-[220px] shrink-0"
-            >
-              <option value="">Semua Kategori</option>
-              {availableCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
+          {/* Quick Keterangan/Uraian Chips Bar */}
+          <div className="pt-2.5 border-t border-indigo-500/30 flex items-center justify-between gap-2 flex-wrap text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10.5px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1 mr-1">
+                <Search className="w-3 h-3 text-cyan-400" />
+                <span>Cari Uraian Cepat:</span>
+              </span>
+              {quickKeteranganKeywords.map((kw) => (
+                <button
+                  key={kw}
+                  type="button"
+                  onClick={() => {
+                    setSearchScope('keterangan');
+                    setSearchTerm(kw);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
+                    searchTerm === kw && searchScope === 'keterangan'
+                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-bold border-amber-300 shadow-sm'
+                      : 'bg-black/40 text-indigo-100 hover:bg-indigo-800/70 hover:text-white border-indigo-400/30'
+                  }`}
+                >
+                  {kw}
+                </button>
               ))}
-            </select>
-          </div>
-        </div>
+            </div>
 
-        {/* Quick Keterangan/Uraian Chips Bar */}
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap text-xs">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-              <Search className="w-3 h-3 text-slate-400" />
-              <span>Cari Uraian Cepat:</span>
-            </span>
-            {quickKeteranganKeywords.map((kw) => (
-              <button
-                key={kw}
-                type="button"
-                onClick={() => {
-                  setSearchScope('keterangan');
-                  setSearchTerm(kw);
-                  setCurrentPage(1);
-                }}
-                className={`px-2 py-0.5 rounded text-[11px] transition-all cursor-pointer border ${
-                  searchTerm === kw && searchScope === 'keterangan'
-                    ? 'bg-emerald-700 text-white font-bold border-emerald-700 shadow-2xs'
-                    : 'bg-slate-100/80 text-slate-700 hover:bg-slate-200/80 border-slate-200'
-                }`}
-              >
-                {kw}
-              </button>
-            ))}
+            {searchTerm && (
+              <span className="text-[11px] font-bold text-amber-300 bg-amber-500/15 px-2.5 py-0.5 rounded-lg border border-amber-400/35 tabular-nums">
+                {filtered.length} data ditemukan
+              </span>
+            )}
           </div>
-
-          {searchTerm && (
-            <span className="text-[11px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-              {filtered.length} data ditemukan
-            </span>
-          )}
         </div>
       </div>
 
-      {/* Transactions Table Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-indigo-200/70 overflow-hidden">
+      {/* Transactions Table Container - Rich Emerald-Teal Header & Obsidian Black Table */}
+      <div className="bg-neutral-950 rounded-2xl shadow-lg shadow-emerald-950/15 border border-emerald-500/40 overflow-hidden">
         {/* Table Top Summary Bar */}
-        <div className="px-4 py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-b border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-slate-200">
+        <div className="relative overflow-hidden px-4 py-3 bg-gradient-to-r from-slate-900 via-emerald-950 to-teal-950 border-b border-emerald-500/35 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="absolute -right-10 -top-10 w-36 h-36 bg-emerald-400/15 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative flex items-center gap-2 text-xs text-slate-200 flex-wrap">
             <span className="font-bold text-white tracking-tight text-sm">
               Daftar Transaksi Kas
             </span>
-            <span aria-hidden="true" className="text-indigo-400">·</span>
-            <span className="font-mono tabular-nums text-indigo-200 font-semibold">
+            <span aria-hidden="true" className="text-emerald-400">·</span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 font-mono tabular-nums text-emerald-300 font-bold text-[11px]">
               {filtered.length} catatan
             </span>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap text-[11px] font-mono tabular-nums">
-            <span className="text-emerald-300 font-semibold">
+          <div className="relative flex items-center gap-3 flex-wrap text-[11px] font-mono tabular-nums">
+            <span className="text-emerald-300 font-bold">
               Masuk: {formatSimpleRupiah(filteredMasukNominal)}
             </span>
-            <span aria-hidden="true" className="text-slate-600">|</span>
-            <span className="text-rose-300 font-semibold">
+            <span aria-hidden="true" className="text-emerald-700">|</span>
+            <span className="text-rose-300 font-bold">
               Keluar: {formatSimpleRupiah(filteredKeluarNominal)}
             </span>
+            <span aria-hidden="true" className="text-emerald-700 hidden sm:inline">|</span>
+            {/* Density Toggle: Rapat vs Normal */}
+            <div className="inline-flex items-center bg-black/50 border border-emerald-500/35 rounded-lg p-0.5 font-sans">
+              <button
+                type="button"
+                onClick={() => setRowDensity('rapat')}
+                className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold transition-all cursor-pointer ${
+                  rowDensity === 'rapat'
+                    ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-2xs'
+                    : 'text-emerald-200/80 hover:text-white'
+                }`}
+                title="Tampilan baris rapat"
+              >
+                Rapat
+              </button>
+              <button
+                type="button"
+                onClick={() => setRowDensity('normal')}
+                className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold transition-all cursor-pointer ${
+                  rowDensity === 'normal'
+                    ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-2xs'
+                    : 'text-emerald-200/80 hover:text-white'
+                }`}
+                title="Tampilan baris normal"
+              >
+                Normal
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-950 border-b-2 border-indigo-500/40 text-[11px] tracking-wide text-indigo-100 font-semibold">
-                <th className="py-2.5 px-2.5 text-center w-[1%] whitespace-nowrap text-indigo-300">
+        <div
+          ref={tableScrollRef}
+          className="overflow-x-auto overflow-y-auto max-h-[460px] sm:max-h-[520px] bg-neutral-950 border-t border-zinc-800 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:bg-emerald-500/55 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-emerald-400/85 [scrollbar-color:#10b981_#18181b] [scrollbar-width:thin]"
+        >
+          <table className="w-full text-left border-collapse text-xs">
+            <thead className="sticky top-0 z-10 shadow-sm shadow-black/60">
+              <tr className="bg-black border-b border-zinc-800 text-[11px] tracking-wide text-zinc-300 font-semibold">
+                <th className="py-2 px-1.5 text-center w-px whitespace-nowrap text-indigo-300">
                   No
                 </th>
-                <th className="py-2.5 px-3 w-[1%] whitespace-nowrap text-slate-200">
+                <th className="py-2 px-1.5 w-px whitespace-nowrap text-zinc-200">
                   Tanggal
                 </th>
-                <th className="py-2.5 px-2.5 text-center w-[1%] whitespace-nowrap text-slate-200">
+                <th className="py-2 px-1.5 text-center w-px whitespace-nowrap text-zinc-200">
                   Tipe
                 </th>
-                <th className="py-2.5 px-3 min-w-[140px] max-w-[200px] text-indigo-200">
+                <th className="py-2 px-2 w-px whitespace-nowrap text-emerald-300">
                   Kategori
                 </th>
-                <th className="py-2.5 px-3 text-right w-[1%] whitespace-nowrap text-emerald-300">
+                <th className="py-2 px-2 text-right w-px whitespace-nowrap bg-amber-500/15 text-amber-300 border-x border-amber-400/20">
                   Jumlah (Rp)
                 </th>
-                <th className="py-2.5 px-3 min-w-[220px] text-slate-200">
+                <th className="py-2 px-2 text-zinc-200">
                   Keterangan
                 </th>
-                <th className="py-2.5 px-3 text-center w-[1%] whitespace-nowrap text-slate-200">
+                <th className="py-2 px-1.5 text-center w-px whitespace-nowrap text-zinc-200">
                   Aksi
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/80 text-xs">
+            <tbody className="divide-y divide-zinc-800/80 text-xs">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-slate-500 bg-slate-50/40">
+                  <td colSpan={7} className="py-10 text-center text-zinc-400 bg-neutral-950">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400">
                         <Filter className="w-4 h-4" />
                       </div>
-                      <p className="font-semibold text-slate-800 text-sm">
+                      <p className="font-semibold text-zinc-100 text-sm">
                         Tidak ada catatan transaksi yang sesuai
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-zinc-400">
                         Periksa kembali filter atau kata kunci pencarian Anda.
                       </p>
                     </div>
@@ -770,81 +847,79 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                     (itemsPerPage === 0 ? 0 : (safeCurrentPage - 1) * itemsPerPage) +
                     idx +
                     1;
+                  const cellY = rowDensity === 'rapat' ? 'py-1.5' : 'py-2.5';
                   return (
                     <tr
                       key={tx.id}
-                      className={`transition-colors duration-150 ${
-                        idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/75'
-                      } ${
+                      className={`group odd:bg-neutral-950 even:bg-zinc-900/75 transition-colors duration-150 ${
                         isMasuk
-                          ? 'hover:bg-emerald-50/55'
-                          : 'hover:bg-rose-50/50'
+                          ? 'hover:bg-emerald-950/55'
+                          : 'hover:bg-rose-950/45'
                       }`}
                     >
                       {/* No */}
-                      <td className="py-2.5 px-2.5 align-top text-center w-[1%] whitespace-nowrap font-mono tabular-nums text-[11px] font-bold text-indigo-600/90">
+                      <td className={`${cellY} px-1.5 align-top text-center w-px whitespace-nowrap font-mono tabular-nums text-[11px] font-bold text-indigo-300`}>
                         {String(rowNum).padStart(2, '0')}
                       </td>
 
                       {/* Tanggal */}
-                      <td className="py-2.5 px-3 align-top w-[1%] whitespace-nowrap text-slate-700 font-medium tabular-nums">
+                      <td className={`${cellY} px-1.5 align-top w-px whitespace-nowrap text-zinc-300 font-mono tabular-nums text-[11px]`}>
                         {formatDateIndo(tx.date)}
                       </td>
 
                       {/* Tipe */}
-                      <td className="py-2.5 px-2.5 align-top text-center w-[1%] whitespace-nowrap">
+                      <td className={`${cellY} px-1.5 align-top text-center w-px whitespace-nowrap`}>
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
                             isMasuk
-                              ? 'bg-emerald-50/90 text-emerald-800 border-emerald-200/90'
-                              : 'bg-rose-50/90 text-rose-800 border-rose-200/90'
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30'
+                              : 'bg-rose-500/15 text-rose-300 border-rose-400/30'
                           }`}
                         >
                           {isMasuk ? (
-                            <ArrowDownLeft className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <ArrowDownLeft className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
                           ) : (
-                            <ArrowUpRight className="w-3 h-3 text-rose-600 shrink-0" />
+                            <ArrowUpRight className="w-2.5 h-2.5 text-rose-400 shrink-0" />
                           )}
                           <span>{tx.type}</span>
                         </span>
                       </td>
 
-                      {/* Kategori — otomatis turun ke bawah jika panjang */}
-                      <td className="py-2.5 px-3 align-top min-w-[140px] max-w-[200px] whitespace-normal break-words leading-snug">
-                        <span className="font-semibold text-slate-900 block">
+                      {/* Kategori — satu baris rapi tanpa terpotong ke baris bawah */}
+                      <td className={`${cellY} px-2 align-top w-px whitespace-nowrap`}>
+                        <span className="font-semibold text-emerald-400 text-[11.5px]">
                           {highlightText(tx.category, searchScope === 'all' ? searchTerm : '')}
                         </span>
                       </td>
 
-                      {/* Jumlah (Rp) */}
-                      <td className="py-2.5 px-3 align-top text-right w-[1%] whitespace-nowrap">
-                        <span
-                          className={`inline-block font-mono tabular-nums font-bold text-xs sm:text-[13px] px-2 py-0.5 rounded-md ${
-                            isMasuk
-                              ? 'bg-emerald-50/80 text-emerald-800'
-                              : 'bg-rose-50/80 text-rose-700'
-                          }`}
-                        >
-                          {isMasuk ? '+' : '-'} {formatSimpleRupiah(tx.amount)}
+                      {/* Jumlah (Rp) - Signature Amber Highlight Column */}
+                      <td
+                        className={`${cellY} px-2 align-top text-right w-px whitespace-nowrap font-mono tabular-nums font-bold text-[11.5px] bg-amber-500/[0.08] group-hover:bg-amber-500/15 border-x border-amber-400/15 transition-colors duration-150 ${
+                          isMasuk ? 'text-amber-300' : 'text-rose-300'
+                        }`}
+                      >
+                        <span className={isMasuk ? 'text-amber-400/90' : 'text-rose-400/90'}>
+                          {isMasuk ? '+' : '-'}
                         </span>
+                        {formatSimpleRupiah(tx.amount)}
                       </td>
 
-                      {/* Keterangan — otomatis tampil penuh turun ke bawah sesuai kebutuhan */}
-                      <td className="py-2.5 px-3 align-top min-w-[220px] max-w-[380px] whitespace-normal break-words leading-relaxed text-slate-700">
+                      {/* Keterangan — teks panjang otomatis turun ke baris di bawahnya */}
+                      <td className={`${cellY} px-2 align-top whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-snug text-[11.5px] text-zinc-100 font-medium`}>
                         {tx.description ? (
                           highlightText(tx.description, searchTerm)
                         ) : (
-                          <span className="text-slate-400 italic">Tidak ada keterangan</span>
+                          <span className="text-zinc-500 italic">Tidak ada keterangan</span>
                         )}
                       </td>
 
                       {/* Aksi */}
-                      <td className="py-2.5 px-3 align-top text-center w-[1%] whitespace-nowrap">
-                        <div className="inline-flex items-center justify-center gap-1.5">
+                      <td className={`${cellY} px-1.5 align-top text-center w-px whitespace-nowrap`}>
+                        <div className="inline-flex items-center justify-center gap-1">
                           <button
                             type="button"
                             onClick={() => openEditModal(tx)}
-                            className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 hover:border-blue-700 shadow-2xs transition-colors duration-150 cursor-pointer"
+                            className="p-1 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border border-blue-400/35 shadow-xs transition-all duration-150 cursor-pointer"
                             title="Edit Transaksi Ini"
                             aria-label="Edit Transaksi"
                           >
@@ -853,7 +928,7 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                           <button
                             type="button"
                             onClick={() => openDeleteModal(tx.id)}
-                            className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white border border-red-600 hover:border-red-700 shadow-2xs transition-colors duration-150 cursor-pointer"
+                            className="p-1 rounded-md bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white border border-rose-400/35 shadow-xs transition-all duration-150 cursor-pointer"
                             title="Hapus Transaksi Ini"
                             aria-label="Hapus Transaksi"
                           >
@@ -869,8 +944,8 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
           </table>
         </div>
 
-        {/* Table Footer / Pagination */}
-        <div className="px-4 py-3 bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300 border-t border-indigo-500/30">
+        {/* Table Footer / Pagination - Crisp Obsidian Black */}
+        <div className="px-4 py-3 bg-black flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 border-t border-zinc-800">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="tabular-nums">
               Menampilkan{' '}
@@ -885,11 +960,11 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   ? filtered.length
                   : Math.min(safeCurrentPage * itemsPerPage, filtered.length)}
               </strong>{' '}
-              dari <strong className="text-indigo-300">{filtered.length}</strong> data transaksi
+              dari <strong className="text-emerald-400">{filtered.length}</strong> data transaksi
             </span>
 
             <div className="flex items-center gap-1.5">
-              <label htmlFor="koreksi-rows-per-page" className="text-[11px] text-slate-400">
+              <label htmlFor="koreksi-rows-per-page" className="text-[11px] text-zinc-400">
                 Baris:
               </label>
               <select
@@ -899,56 +974,58 @@ export const KoreksiHapusView: React.FC<KoreksiHapusViewProps> = ({
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="px-2 py-1 bg-slate-800 text-white border border-slate-700 rounded-lg text-[11px] font-semibold focus:outline-none focus:border-indigo-400 cursor-pointer"
+                className="px-2 py-1 bg-zinc-900 text-white border border-zinc-700 rounded-lg text-[11px] font-semibold focus:outline-none focus:border-emerald-400 cursor-pointer"
               >
+                <option value={0}>Semua (Scroll)</option>
                 <option value={10}>10 / hal</option>
                 <option value={20}>20 / hal</option>
                 <option value={50}>50 / hal</option>
-                <option value={0}>Semua</option>
               </select>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={safeCurrentPage === 1}
-              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 font-semibold text-slate-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px] whitespace-nowrap"
-            >
-              Sebelumnya
-            </button>
+          {itemsPerPage !== 0 && totalPages > 1 && (
+            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={safeCurrentPage === 1}
+                className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 rounded-lg border border-zinc-700 font-semibold text-zinc-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px] whitespace-nowrap"
+              >
+                Sebelumnya
+              </button>
 
-            {visiblePageNumbers.map((item) =>
-              typeof item === 'number' ? (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setCurrentPage(item)}
-                  className={`min-w-[30px] px-2.5 py-1.5 rounded-lg font-bold transition-colors cursor-pointer text-[11px] tabular-nums ${
-                    safeCurrentPage === item
-                      ? 'bg-indigo-600 text-white shadow-xs border border-indigo-500'
-                      : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
-                  }`}
-                >
-                  {item}
-                </button>
-              ) : (
-                <span key={item} className="px-1 text-slate-500 select-none">
-                  ...
-                </span>
-              )
-            )}
+              {visiblePageNumbers.map((item) =>
+                typeof item === 'number' ? (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setCurrentPage(item)}
+                    className={`min-w-[30px] px-2.5 py-1.5 rounded-lg font-bold transition-colors cursor-pointer text-[11px] tabular-nums ${
+                      safeCurrentPage === item
+                        ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-sm'
+                        : 'bg-zinc-900 text-zinc-300 border border-zinc-700 hover:bg-zinc-800 hover:text-white'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ) : (
+                  <span key={item} className="px-1 text-zinc-500 select-none">
+                    ...
+                  </span>
+                )
+              )}
 
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={safeCurrentPage === totalPages}
-              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 font-semibold text-slate-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px] whitespace-nowrap"
-            >
-              Selanjutnya
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={safeCurrentPage === totalPages}
+                className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 rounded-lg border border-zinc-700 font-semibold text-zinc-200 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer text-[11px] whitespace-nowrap"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

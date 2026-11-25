@@ -1,6 +1,6 @@
 {
-  "name": "Kas RT - Update-20Nov-16:10",
-  "description": "Sistem Pengelolaan Kas dan Keuangan Rukun Tetangga (RT 05 / RW 02) dengan pencatatan transaksi, koreksi data, dan laporan keuangan.",
+  "name": "Kas RT - Update-26-Nov-26-06:43",
+  "description": "Penyempurnaan Warna di beberapa Halaman",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

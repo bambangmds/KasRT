@@ -143,27 +143,28 @@ body {
   background: #94a3b8;
 }
 
-/* Dark scrollbar for Sidebar menu navigation */
+/* Dark scrollbar for Sidebar & dark tables */
 .custom-scrollbar-dark {
   scrollbar-width: thin;
-  scrollbar-color: rgba(71, 85, 105, 0.8) transparent;
+  scrollbar-color: rgba(148, 163, 184, 0.55) rgba(24, 24, 27, 0.7);
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar {
-  width: 5px;
+  width: 7px;
+  height: 7px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(24, 24, 27, 0.65);
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.7);
+  background: rgba(148, 163, 184, 0.45);
   border-radius: 9999px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.9);
+  background: rgba(148, 163, 184, 0.75);
 }
 
 /* Sembunyikan ikon mata bawaan browser (khususnya Edge) pada input password */

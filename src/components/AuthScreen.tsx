@@ -199,13 +199,6 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
     no_kk?: string;
   } | null>(null);
 
-  const [existingAccountLogin, setExistingAccountLogin] = useState<{
-    id: string;
-    nama: string;
-    email: string;
-    role: string;
-    no_kk?: string;
-  } | null>(null);
 
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
 
@@ -260,46 +253,6 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
     };
   }, [selectedCitizen, email, role, tab, connectionStatus]);
 
-  // 2. Reactive check untuk login (Login Tab)
-  useEffect(() => {
-    let active = true;
-    const checkLoginAcc = async () => {
-      if (tab !== 'login') {
-        setExistingAccountLogin(null);
-        return;
-      }
-
-      const checkEmail = email.trim();
-      if (!checkEmail) {
-        setExistingAccountLogin(null);
-        return;
-      }
-
-      try {
-        const res = await checkCitizenAlreadyHasAccount({
-          email: checkEmail,
-        });
-        if (active) {
-          if (res.exists && res.account) {
-            setExistingAccountLogin(res.account);
-          } else {
-            setExistingAccountLogin(null);
-          }
-        }
-      } catch (err) {
-        console.warn('[checkLoginAcc Error]', err);
-      }
-    };
-
-    const timer = setTimeout(() => {
-      checkLoginAcc();
-    }, 400);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [email, tab, connectionStatus]);
 
   // Handle Login Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -713,34 +666,6 @@ export const AuthScreen: React.FC<AuthModalProps> = ({
                       className="w-full pl-12 pr-3.5 py-2.5 bg-slate-50/70 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all shadow-2xs"
                     />
                   </div>
-                  {/* Indikator Jabatan Terkait Email yang diketik */}
-                  {existingAccountLogin ? (
-                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-[11px] flex items-start gap-2 animate-in fade-in">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-emerald-900 block">Akun Terdaftar Aktif!</span>
-                        <span className="text-[10.5px] text-emerald-800 block mt-0.5 leading-relaxed">
-                          Selamat datang kembali, <strong>{existingAccountLogin.nama}</strong> ({existingAccountLogin.role}). Anda sudah memiliki akun. Silakan masukkan kata sandi Anda.
-                        </span>
-                      </div>
-                    </div>
-                  ) : (() => {
-                    const clean = email.trim().toLowerCase();
-                    if (!clean) return null;
-                    const rolesToCheck = ['Ketua RT', 'Sekretaris', 'Bendahara', 'Wakil Ketua RT'];
-                    for (const r of rolesToCheck) {
-                      const matched = getOccupiedInfo(r);
-                      if (matched && matched.email && matched.email.toLowerCase() === clean) {
-                        return (
-                          <p key={r} className="mt-1 text-[11px] text-emerald-700 font-medium flex items-center gap-1 animate-in fade-in">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>Email ini cocok dengan jabatan <strong>{r}: Sudah Terisi ({matched.nama})</strong></span>
-                          </p>
-                        );
-                      }
-                    }
-                    return null;
-                  })()}
                 </div>
 
                 <div>

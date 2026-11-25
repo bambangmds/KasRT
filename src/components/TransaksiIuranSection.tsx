@@ -18,11 +18,13 @@ import {
   Sparkles
 } from 'lucide-react';
 import { getSupabase, insertKasToSupabase } from '../lib/supabase';
-import { SupabaseConnectionStatus, CategoryItem } from '../types';
+import { SupabaseConnectionStatus, CategoryItem, Transaction } from '../types';
 import { formatSimpleRupiah, formatDateIndo } from '../data/initialData';
 import { useSekretariat } from '../context/SekretariatContext';
+import { findMatchingIuranTx } from '../lib/iuranMatching';
 
 interface TransaksiIuranSectionProps {
+  transactions?: Transaction[];
   connectionStatus?: SupabaseConnectionStatus;
   onTriggerToast: (msg: string, type?: 'success' | 'error' | 'info', title?: string) => void;
   onRefreshTransactions?: () => void;
@@ -59,6 +61,7 @@ const setStoredDefaultAmount = (category: string, amount: number) => {
 };
 
 export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({ 
+  transactions = [],
   connectionStatus = 'connected', 
   onTriggerToast,
   onRefreshTransactions,
@@ -198,12 +201,48 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
   const [paymentDescription, setPaymentDescription] = useState<string>('');
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [searchWargaTerm, setSearchWargaTerm] = useState('');
+  const [onlyUnpaidSerempak, setOnlyUnpaidSerempak] = useState(false);
 
   // Transaksi Iuran History State
   const [iuranHistory, setIuranHistory] = useState<any[]>([]);
+  const [allSupabaseMasuk, setAllSupabaseMasuk] = useState<any[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [searchHistoryTerm, setSearchHistoryTerm] = useState('');
   const [selectedHistoryCategory, setSelectedHistoryCategory] = useState<string>('Semua');
+
+  // Gabungan seluruh transaksi Kas Masuk (Supabase + props transactions) agar 100% sinkron dengan Laporan Kepatuhan Iuran
+  const allKasMasuk = useMemo(() => {
+    const list: any[] = [];
+    const seenIds = new Set<string>();
+
+    if (Array.isArray(allSupabaseMasuk)) {
+      allSupabaseMasuk.forEach((t) => {
+        if (t && t.id) {
+          seenIds.add(String(t.id));
+          list.push(t);
+        }
+      });
+    }
+
+    if (Array.isArray(transactions)) {
+      transactions.forEach((t) => {
+        if (t && t.type === 'Masuk' && !seenIds.has(String(t.id))) {
+          seenIds.add(String(t.id));
+          list.push({
+            id: t.id,
+            tanggal: t.date,
+            jenis: t.type,
+            kategori: t.category,
+            jumlah: t.amount,
+            keterangan: t.description,
+            warga_id: t.wargaId,
+          });
+        }
+      });
+    }
+
+    return list;
+  }, [allSupabaseMasuk, transactions]);
 
   // Handler pergantian bulan tagihan
   const handlePaymentMonthChange = (newMonth: string) => {
@@ -221,6 +260,13 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
     setIsLoading(true);
     const client = getSupabase();
     if (!client) {
+      try {
+        const saved = localStorage.getItem('kas_rt_data_warga');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setDataWarga(parsed);
+        }
+      } catch {}
       setIsLoading(false);
       return;
     }
@@ -237,8 +283,18 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
         } else {
           onTriggerToast(error.message, 'error', 'Gagal Memuat Data');
         }
-      } else if (data) {
+      } else if (data && data.length > 0) {
         setDataWarga(data);
+      } else {
+        const saved = localStorage.getItem('kas_rt_data_warga');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setDataWarga(parsed);
+            }
+          } catch {}
+        }
       }
     } catch (err: any) {
       onTriggerToast(err.message, 'error');
@@ -264,6 +320,7 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
       if (error) {
         console.error('Error loading iuran history:', error);
       } else if (data) {
+        setAllSupabaseMasuk(data);
         const incomeCategoryNames = categories.filter(c => c.type === 'Masuk').map(c => c.name);
         const activeCategoriesFilter = incomeCategoryNames.length > 0 ? incomeCategoryNames : CATEGORIES_IURAN;
         const filtered = data.filter((t: any) => 
@@ -282,8 +339,8 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
   };
 
   useEffect(() => {
+    loadDataWarga();
     if (connectionStatus === 'connected') {
-      loadDataWarga();
       loadIuranHistory();
     }
   }, [connectionStatus, categories, refreshTrigger]);
@@ -317,61 +374,23 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
   }, [selectedWargaId, selectedWargaIds, paymentMode, selectedCategory, paymentMonth, paymentYear, dataWarga]);
 
   // Helper: Cek apakah warga sudah membayar iuran tertentu di bulan dan tahun yang sama
-  const checkIfWargaAlreadyPaid = useCallback((warga: any, category: string, month: string, year: string) => {
-    const cleanW = (warga?.nama_lengkap || '')
-      .toLowerCase()
-      .replace(/^(bpk\.?|bapak\.?|ibu\.?|ibuk\.?|pak\.?|h\.?|hj\.?|sdr\.?|sdri\.?)\s+/i, '')
-      .trim();
+  // Menggunakan Single Source of Truth yang sama persis dengan Laporan Kepatuhan Iuran
+  const checkIfWargaAlreadyPaid = useCallback(
+    (warga: any, category: string, month: string, year: string) => {
+      return Boolean(findMatchingIuranTx(warga, allKasMasuk, category, month, year));
+    },
+    [allKasMasuk]
+  );
 
-    return iuranHistory.some(tx => {
-      const desc = (tx.keterangan || '').toLowerCase();
-      let isWargaMatch = false;
-
-      if (tx.warga_id && tx.warga_id === warga.id) {
-        isWargaMatch = true;
-      } else if (cleanW && cleanW.length >= 3 && desc.includes(cleanW)) {
-        isWargaMatch = true;
-      } else if (warga.nik && warga.nik.length >= 6 && warga.nik !== '-' && desc.includes(warga.nik)) {
-        isWargaMatch = true;
-      }
-
-      if (!isWargaMatch) return false;
-      if (category !== 'Semua Kategori' && tx.kategori !== category) return false;
-
-      const monthMatch = desc.match(/bulan\s+([a-z]+|\d{1,2})/i);
-      const yearMatch = desc.match(/(202\d|203\d)/);
-
-      let txMonthName = '';
-      let txYear = tx.tanggal ? tx.tanggal.split('-')[0] : '';
-
-      if (monthMatch && monthMatch[1]) {
-        const rawM = monthMatch[1].toLowerCase();
-        const foundIdx = BULAN_LIST.findIndex(b => b.toLowerCase() === rawM);
-        if (foundIdx >= 0) {
-          txMonthName = BULAN_LIST[foundIdx];
-        } else {
-          const numM = parseInt(rawM, 10);
-          if (!isNaN(numM) && numM >= 1 && numM <= 12) {
-            txMonthName = BULAN_LIST[numM - 1];
-          }
-        }
-      } else if (tx.tanggal && tx.tanggal.includes('-')) {
-        const parts = tx.tanggal.split('-');
-        if (parts.length >= 2) {
-          const mIdx = parseInt(parts[1], 10) - 1;
-          if (mIdx >= 0 && mIdx < 12) {
-            txMonthName = BULAN_LIST[mIdx];
-          }
-        }
-      }
-
-      if (yearMatch && yearMatch[1]) {
-        txYear = yearMatch[1];
-      }
-
-      return txMonthName.toLowerCase() === month.toLowerCase() && txYear === year;
-    });
-  }, [iuranHistory]);
+  // Sinkronkan pilihan warga otomatis jika mode filter "Pilih Belum Lunas" aktif dan periode/kategori berubah
+  useEffect(() => {
+    if (onlyUnpaidSerempak) {
+      const unpaidIds = dataWarga
+        .filter((w) => !checkIfWargaAlreadyPaid(w, selectedCategory, paymentMonth, paymentYear))
+        .map((w) => w.id);
+      setSelectedWargaIds(unpaidIds);
+    }
+  }, [onlyUnpaidSerempak, dataWarga, selectedCategory, paymentMonth, paymentYear, checkIfWargaAlreadyPaid]);
 
   const handleSavePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -522,6 +541,7 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
         
         setSelectedWargaIds([]);
         setSearchWargaTerm('');
+        setOnlyUnpaidSerempak(false);
         loadIuranHistory();
         
         if (onRefreshTransactions) {
@@ -542,6 +562,21 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
     w.no_kk?.includes(searchWargaTerm) ||
     w.alamat_domisili?.toLowerCase().includes(searchWargaTerm.toLowerCase())
   );
+
+  // Daftar warga khusus mode Bayar Serempak (hanya tampilkan belum lunas jika filter aktif)
+  const serempakWargaList = useMemo(() => {
+    if (!onlyUnpaidSerempak) return filteredWargaForSelect;
+    return filteredWargaForSelect.filter(
+      (w) => !checkIfWargaAlreadyPaid(w, selectedCategory, paymentMonth, paymentYear)
+    );
+  }, [
+    filteredWargaForSelect,
+    onlyUnpaidSerempak,
+    checkIfWargaAlreadyPaid,
+    selectedCategory,
+    paymentMonth,
+    paymentYear,
+  ]);
 
   // Unique categories found in iuran history for quick filter tabs
   const historyCategories = useMemo(() => {
@@ -878,15 +913,23 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
                           .filter(w => !checkIfWargaAlreadyPaid(w, selectedCategory, paymentMonth, paymentYear))
                           .map(w => w.id);
                         setSelectedWargaIds(unpaidIds);
+                        setOnlyUnpaidSerempak(true);
                       }}
-                      className="text-[11px] text-cyan-300 hover:text-white hover:underline font-bold cursor-pointer whitespace-nowrap transition-colors"
+                      className={`text-[11px] font-bold cursor-pointer whitespace-nowrap transition-all ${
+                        onlyUnpaidSerempak
+                          ? 'px-2 py-0.5 rounded-md bg-cyan-400 text-slate-950 shadow-xs'
+                          : 'text-cyan-300 hover:text-white hover:underline'
+                      }`}
                     >
                       Pilih Belum Lunas
                     </button>
                     <span className="text-indigo-400/60" aria-hidden="true">·</span>
                     <button
                       type="button"
-                      onClick={() => setSelectedWargaIds([])}
+                      onClick={() => {
+                        setSelectedWargaIds([]);
+                        setOnlyUnpaidSerempak(false);
+                      }}
                       className="text-[11px] text-rose-300 hover:text-rose-200 hover:underline font-semibold cursor-pointer whitespace-nowrap transition-colors"
                     >
                       Batal Pilih
@@ -920,8 +963,8 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
                       <div className="p-4 text-center text-xs text-sky-200 flex items-center justify-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> Memuat data warga...
                       </div>
-                    ) : filteredWargaForSelect.length > 0 ? (
-                      filteredWargaForSelect.map(w => {
+                    ) : serempakWargaList.length > 0 ? (
+                      serempakWargaList.map(w => {
                         const isSelected = selectedWargaIds.includes(w.id);
                         const isPaid = checkIfWargaAlreadyPaid(w, selectedCategory, paymentMonth, paymentYear);
                         return (
@@ -968,7 +1011,9 @@ export const TransaksiIuranSection: React.FC<TransaksiIuranSectionProps> = ({
                       })
                     ) : (
                       <div className="p-4 text-center text-xs text-indigo-200/70">
-                        Warga tidak ditemukan
+                        {onlyUnpaidSerempak && !searchWargaTerm
+                          ? `Semua warga sudah lunas untuk ${selectedCategory} (${paymentMonth} ${paymentYear})`
+                          : 'Warga tidak ditemukan'}
                       </div>
                     )}
                   </div>

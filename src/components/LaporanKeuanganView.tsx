@@ -660,18 +660,18 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
         </div>
       </div>
 
-      {/* Sub Menu / Mode Navigation */}
-      <div className="flex border-b border-slate-200 bg-white p-1 rounded-xl shadow-xs border print:hidden gap-1.5 flex-wrap">
+      {/* Sub Menu / Mode Navigation - Clean Gray Frame */}
+      <div className="flex bg-slate-200/90 p-1 rounded-xl shadow-xs border border-slate-300 print:hidden gap-1.5 flex-wrap">
         <button
           type="button"
           onClick={() => setActiveSubTab('rekap-arus-kas')}
           className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeSubTab === 'rekap-arus-kas'
               ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 ring-1 ring-emerald-500/30 font-extrabold'
-              : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/60'
+              : 'text-slate-700 hover:text-emerald-700 hover:bg-white/75'
           }`}
         >
-          <BarChart3 className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'rekap-arus-kas' ? 'text-emerald-100 scale-110' : 'text-slate-400'}`} />
+          <BarChart3 className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'rekap-arus-kas' ? 'text-emerald-100 scale-110' : 'text-slate-500'}`} />
           <span>Rekap Arus Kas</span>
         </button>
 
@@ -681,10 +681,10 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
           className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeSubTab === 'laporan-iuran'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-1 ring-indigo-500/30 font-extrabold'
-              : 'text-slate-600 hover:text-indigo-700 hover:bg-indigo-50/60'
+              : 'text-slate-700 hover:text-indigo-700 hover:bg-white/75'
           }`}
         >
-          <ClipboardList className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'laporan-iuran' ? 'text-blue-100 scale-110' : 'text-slate-400'}`} />
+          <ClipboardList className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'laporan-iuran' ? 'text-blue-100 scale-110' : 'text-slate-500'}`} />
           <span>Kepatuhan Iuran</span>
         </button>
 
@@ -694,10 +694,10 @@ export const LaporanKeuanganView: React.FC<LaporanKeuanganViewProps> = ({
           className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeSubTab === 'kartu-iuran-warga'
               ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md shadow-fuchsia-600/20 ring-1 ring-fuchsia-500/30 font-extrabold'
-              : 'text-slate-600 hover:text-fuchsia-700 hover:bg-fuchsia-50/60'
+              : 'text-slate-700 hover:text-fuchsia-700 hover:bg-white/75'
           }`}
         >
-          <CreditCard className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'kartu-iuran-warga' ? 'text-fuchsia-100 scale-110' : 'text-slate-400'}`} />
+          <CreditCard className={`w-3.5 h-3.5 transition-transform ${activeSubTab === 'kartu-iuran-warga' ? 'text-fuchsia-100 scale-110' : 'text-slate-500'}`} />
           <span>Kartu Iuran Warga (12 Bulan)</span>
         </button>
       </div>
